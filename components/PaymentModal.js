@@ -216,7 +216,7 @@ export default function PaymentModal({
                 <Text style={styles.confirmedStep}>✅ 1. Votre paiement est enregistré</Text>
                 <Text style={styles.confirmedStep}>⏳ 2. La startup va confirmer la réception</Text>
                 <Text style={styles.confirmedStep}>📦 3. Votre commande sera traitée</Text>
-                <Text style={styles.confirmedStep}>🚀 4. Vous serez notifié de l'expédition</Text>
+                <Text style={styles.confirmedStep}>🚀 4. Vous serez notifié de l&apos;expédition</Text>
               </View>
 
               <TouchableOpacity
@@ -285,7 +285,7 @@ export default function PaymentModal({
                 <Text style={styles.instruction}>1. Copier le code ci-dessus</Text>
                 <Text style={styles.instruction}>2. Composer le code sur votre téléphone</Text>
                 <Text style={styles.instruction}>3. Valider le paiement</Text>
-                <Text style={styles.instruction}>4. Revenir et cliquer "J'ai payé"</Text>
+                <Text style={styles.instruction}>4. Revenir et cliquer &quot;J&apos;ai payé&quot;</Text>
               </View>
 
               {/* BOUTONS */}
@@ -306,7 +306,7 @@ export default function PaymentModal({
                   {loading ? (
                     <ActivityIndicator color="white" />
                   ) : (
-                    <Text style={styles.confirmButtonText}>✅ J'ai payé</Text>
+                    <Text style={styles.confirmButtonText}>✅ J&apos;ai payé</Text>
                   )}
                 </TouchableOpacity>
               </View>

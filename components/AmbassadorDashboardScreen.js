@@ -162,7 +162,7 @@ export default function AmbassadorDashboardScreen({ navigation }) {
           <View style={styles.howItWorksCard}>
             <Text style={styles.howItWorksStep}>1️⃣  Partagez votre code</Text>
             <Text style={styles.howItWorksDescription}>
-              Invitez vos amis à s'inscrire avec votre code
+              Invitez vos amis à s&apos;inscrire avec votre code
             </Text>
             
             <Text style={styles.howItWorksStep}>2️⃣  Ils commandent</Text>
