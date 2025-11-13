@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import { auth } from './config/firebase';
 import adminService from './utils/adminService';
 import { notificationService } from './utils/notificationService';
@@ -378,7 +378,11 @@ const saveCartToStorage = async () => {
   if (initializing) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingLogo}>🛒</Text>
+        <Image
+          source={require('./assets/logo.png')}
+          style={styles.loadingLogo}
+          resizeMode="contain"
+        />
         <Text style={styles.loadingText}>PipoMarket</Text>
         <Text style={styles.loadingSubtext}>Chargement...</Text>
       </View>
@@ -751,7 +755,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   loadingLogo: {
-    fontSize: 80,
+    width: 120,
+    height: 120,
     marginBottom: 20,
   },
   loadingText: {
