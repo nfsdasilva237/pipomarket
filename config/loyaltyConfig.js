@@ -51,52 +51,52 @@ export const loyaltyConfig = {
     }
   ],
   
-  // Récompenses échangeables
+  // Récompenses échangeables (RÉÉQUILIBRÉ pour plus de valeur)
   rewards: [
     {
       id: 'discount_5',
       name: 'Réduction 5%',
       description: 'Économisez 5% sur votre prochaine commande',
       icon: '💰',
-      pointsCost: 100,
+      pointsCost: 500,
       type: 'discount',
-      value: 5 // 5% de réduction
+      value: 5 // 5% de réduction (50 000 FCFA d'achats)
     },
     {
       id: 'discount_10',
       name: 'Réduction 10%',
       description: 'Économisez 10% sur votre prochaine commande',
       icon: '🎁',
-      pointsCost: 250,
+      pointsCost: 1000,
       type: 'discount',
-      value: 10
-    },
-    {
-      id: 'discount_15',
-      name: 'Réduction 15%',
-      description: 'Économisez 15% sur votre prochaine commande',
-      icon: '🎉',
-      pointsCost: 500,
-      type: 'discount',
-      value: 15
+      value: 10 // (100 000 FCFA d'achats)
     },
     {
       id: 'free_delivery',
       name: 'Livraison Gratuite',
       description: 'Livraison gratuite sur votre prochaine commande',
       icon: '🚚',
-      pointsCost: 200,
+      pointsCost: 1500,
       type: 'free_delivery',
-      value: true
+      value: true // (150 000 FCFA d'achats)
+    },
+    {
+      id: 'discount_15',
+      name: 'Réduction 15%',
+      description: 'Économisez 15% sur votre prochaine commande',
+      icon: '🎉',
+      pointsCost: 2500,
+      type: 'discount',
+      value: 15 // (250 000 FCFA d'achats)
     },
     {
       id: 'discount_20',
       name: 'Réduction 20%',
       description: 'Économisez 20% sur votre prochaine commande',
       icon: '🌟',
-      pointsCost: 1000,
+      pointsCost: 5000,
       type: 'discount',
-      value: 20
+      value: 20 // (500 000 FCFA d'achats)
     }
   ]
 };

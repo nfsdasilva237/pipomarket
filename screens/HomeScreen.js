@@ -244,13 +244,16 @@ export default function HomeScreen({ navigation }) {
             </View>
           </View>
           <View style={styles.headerButtons}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => navigation.navigate('Login')}
+              onPress={() => navigation.navigate('ProfileTab')}
             >
               <Text style={styles.iconButtonText}>👤</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => navigation.navigate('NotificationsTab')}
+            >
               <Text style={styles.iconButtonText}>🔔</Text>
             </TouchableOpacity>
           </View>

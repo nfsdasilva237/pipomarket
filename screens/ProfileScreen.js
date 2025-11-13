@@ -207,44 +207,6 @@ export default function ProfileScreen({ navigation }) {
   </TouchableOpacity>
 </View>
 
-        {/* PARAMÈTRES */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Paramètres</Text>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
-          >
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemIcon}>⚙️</Text>
-              <Text style={styles.menuItemText}>Paramètres du compte</Text>
-            </View>
-            <Text style={styles.menuItemArrow}>→</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
-          >
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemIcon}>🔔</Text>
-              <Text style={styles.menuItemText}>Notifications</Text>
-            </View>
-            <Text style={styles.menuItemArrow}>→</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
-          >
-            <View style={styles.menuItemLeft}>
-              <Text style={styles.menuItemIcon}>❓</Text>
-              <Text style={styles.menuItemText}>Aide & Support</Text>
-            </View>
-            <Text style={styles.menuItemArrow}>→</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* DÉCONNEXION */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
