@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "259564310935",
+    "firebase_url": "https://pipomarket-4da97-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "pipomarket-4da97",
+    "storage_bucket": "pipomarket-4da97.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:259564310935:android:fabbd96ae343ce3ed1b4d2",
+        "android_client_info": {
+          "package_name": "com.pipomarket.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkBbJZTiOtMl8YeIsgs9qKcuiw00XTBEE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
