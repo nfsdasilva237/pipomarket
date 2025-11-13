@@ -1,5 +1,5 @@
 // components/PaymentModal.js - VERSION AMÉLIORÉE AVEC TRACKING
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,41 +12,26 @@ import {
 } from 'react-native';
 import paymentService from '../utils/paymentService';
 
-export default function PaymentModal({ 
-  visible, 
-  onClose, 
-  orderData, 
-  onPaymentConfirmed 
+export default function PaymentModal({
+  visible,
+  onClose,
+  orderData,
+  onPaymentConfirmed
 }) {
   const [loading, setLoading] = useState(false);
   const [payment, setPayment] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState(900); // 15 minutes
   const [paymentConfirmed, setPaymentConfirmed] = useState(false); // ✅ NOUVEAU
 
-  useEffect(() => {
-    if (visible && orderData) {
-      initializePayment();
-    }
-  }, [visible, orderData]);
+  const handleExpiration = useCallback(() => {
+    Alert.alert(
+      'Temps écoulé',
+      'Le temps de paiement est expiré. Veuillez recommencer.',
+      [{ text: 'OK', onPress: onClose }]
+    );
+  }, [onClose]);
 
-  useEffect(() => {
-    if (!visible || paymentConfirmed) return; // ✅ Stop si déjà confirmé
-
-    const timer = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleExpiration();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [visible, paymentConfirmed]);
-
-  const initializePayment = async () => {
+  const initializePayment = useCallback(async () => {
     setLoading(true);
     setPaymentConfirmed(false); // ✅ Reset
     try {
@@ -74,15 +59,30 @@ export default function PaymentModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderData, onClose]);
 
-  const handleExpiration = () => {
-    Alert.alert(
-      'Temps écoulé',
-      'Le temps de paiement est expiré. Veuillez recommencer.',
-      [{ text: 'OK', onPress: onClose }]
-    );
-  };
+  useEffect(() => {
+    if (visible && orderData) {
+      initializePayment();
+    }
+  }, [visible, orderData, initializePayment]);
+
+  useEffect(() => {
+    if (!visible || paymentConfirmed) return; // ✅ Stop si déjà confirmé
+
+    const timer = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleExpiration();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [visible, paymentConfirmed, handleExpiration]);
 
   const handleCopyCode = () => {
     if (payment?.mobileMoneyCode) {
