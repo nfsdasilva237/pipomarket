@@ -1,0 +1,131 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Fonction helper pour vérifier l'authentification
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Fonction pour vérifier si l'utilisateur est admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // USERS
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+      
+      // Notifications des utilisateurs
+      match /notifications/{notificationId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow write: if isAuthenticated();
+      }
+    }
+    
+    // STARTUPS
+    match /startups/{startupId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+                       (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+      
+      // Notifications des startups
+      match /notifications/{notificationId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
+    }
+    
+    // PRODUCTS
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+                       (resource.data.startupId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && 
+                       (resource.data.startupId == request.auth.uid || isAdmin());
+    }
+    
+    // ORDERS
+    match /orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    
+    // PROMO CODES
+    match /promoCodes/{promoId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // PAYMENTS
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // AMBASSADORS
+    match /ambassadors/{ambassadorId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // AMBASSADOR EARNINGS
+    match /ambassadorEarnings/{earningId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // AMBASSADOR PAYMENTS
+    match /ambassadorPayments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // NOTIFICATIONS GLOBALES
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+    
+    // ✅ CONVERSATIONS (NOUVEAU)
+    match /conversations/{conversationId} {
+      // Lire : si on est participant
+      allow read: if isAuthenticated() && 
+                     request.auth.uid in resource.data.participants;
+      
+      // Créer : si on est dans la liste des participants
+      allow create: if isAuthenticated() && 
+                       request.auth.uid in request.resource.data.participants;
+      
+      // Mettre à jour : si on est participant
+      allow update: if isAuthenticated() && 
+                       request.auth.uid in resource.data.participants;
+      
+      // ✅ MESSAGES DANS CONVERSATIONS (NOUVEAU)
+      match /messages/{messageId} {
+        // Lire : si on est participant de la conversation
+        allow read: if isAuthenticated() && 
+                       request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+        
+        // Créer : si on est participant et qu'on est l'expéditeur
+        allow create: if isAuthenticated() && 
+                         request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants &&
+                         request.auth.uid == request.resource.data.senderId;
+        
+        // Mettre à jour : si on est participant (pour marquer comme lu)
+        allow update: if isAuthenticated() && 
+                         request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+      }
+    }
+  }
+}

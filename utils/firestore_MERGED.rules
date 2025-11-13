@@ -1,0 +1,234 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // =====================================
+    // FONCTIONS HELPER
+    // =====================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Vérifier si user est admin (avec protection)
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // =====================================
+    // USERS
+    // =====================================
+    match /users/{userId} {
+      // Tout le monde peut lire
+      allow read: if true;
+      
+      // Propriétaire ou Admin peut écrire
+      allow write: if isOwner(userId) || isAdmin();
+      
+      // ✅ NOUVEAU : Notifications des utilisateurs
+      match /notifications/{notificationId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow write: if isAuthenticated();
+      }
+    }
+    
+    // =====================================
+    // STARTUPS
+    // =====================================
+    match /startups/{startupId} {
+      // Tout le monde peut lire
+      allow read: if true;
+      
+      // User authentifié peut créer
+      allow create: if isAuthenticated();
+      
+      // Propriétaire ou Admin peut modifier
+      allow update: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid || 
+        isAdmin()
+      );
+      
+      // Admin peut supprimer
+      allow delete: if isAdmin();
+      
+      // ✅ NOUVEAU : Notifications des startups
+      match /notifications/{notificationId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
+    }
+    
+    // =====================================
+    // PRODUCTS
+    // =====================================
+    match /products/{productId} {
+      // Tout le monde peut lire
+      allow read: if true;
+      
+      // User authentifié peut créer
+      allow create: if isAuthenticated();
+      
+      // Propriétaire startup ou Admin peut modifier/supprimer
+      allow update, delete: if isAuthenticated();
+    }
+    
+    // =====================================
+    // ORDERS
+    // =====================================
+    match /orders/{orderId} {
+      // User authentifié peut lire
+      allow read: if isAuthenticated();
+      
+      // User peut créer ses propres commandes
+      allow create: if isAuthenticated();
+      
+      // User ou Admin peut modifier
+      allow update: if isAuthenticated();
+      
+      // Admin peut supprimer
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // PROMO CODES
+    // =====================================
+    match /promoCodes/{promoId} {
+      // Tout le monde peut lire
+      allow read: if true;
+      
+      // User authentifié peut créer
+      allow create: if isAuthenticated();
+      
+      // User ou Admin peut modifier/supprimer
+      allow update, delete: if isAuthenticated();
+    }
+    
+    // =====================================
+    // ✅ CONVERSATIONS (NOUVEAU - CORRIGÉ)
+    // =====================================
+    match /conversations/{conversationId} {
+      // Lire : si on est participant
+      allow read: if isAuthenticated() && 
+                     request.auth.uid in resource.data.participants;
+      
+      // Créer : si on est dans la liste des participants
+      allow create: if isAuthenticated() && 
+                       request.auth.uid in request.resource.data.participants;
+      
+      // Mettre à jour : si on est participant
+      allow update: if isAuthenticated() && 
+                       request.auth.uid in resource.data.participants;
+      
+      // ✅ MESSAGES DANS CONVERSATIONS (NOUVEAU)
+      match /messages/{messageId} {
+        // Lire : si on est participant de la conversation
+        allow read: if isAuthenticated() && 
+                       request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+        
+        // Créer : si on est participant et qu'on est l'expéditeur
+        allow create: if isAuthenticated() && 
+                         request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants &&
+                         request.auth.uid == request.resource.data.senderId;
+        
+        // Mettre à jour : si on est participant (pour marquer comme lu)
+        allow update: if isAuthenticated() && 
+                         request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+      }
+    }
+    
+    // =====================================
+    // MESSAGES (ANCIENNE COLLECTION - GARDER POUR COMPATIBILITÉ)
+    // =====================================
+    match /messages/{messageId} {
+      // User authentifié peut lire/écrire
+      allow read, write: if isAuthenticated();
+    }
+    
+    // =====================================
+    // FAVORITES
+    // =====================================
+    match /favorites/{favoriteId} {
+      // User authentifié peut lire/écrire
+      allow read, write: if isAuthenticated();
+    }
+    
+    // =====================================
+    // REVIEWS
+    // =====================================
+    match /reviews/{reviewId} {
+      // Tout le monde peut lire
+      allow read: if true;
+      
+      // User authentifié peut écrire
+      allow write: if isAuthenticated();
+    }
+    
+    // =====================================
+    // NOTIFICATIONS GLOBALES
+    // =====================================
+    match /notifications/{notificationId} {
+      // User authentifié peut lire/écrire
+      allow read, write: if isAuthenticated();
+    }
+    
+    // =====================================
+    // ADDRESSES
+    // =====================================
+    match /addresses/{addressId} {
+      // User authentifié peut lire/écrire
+      allow read, write: if isAuthenticated();
+    }
+    
+    // =====================================
+    // PAYMENT SYSTEM
+    // =====================================
+    match /payments/{paymentId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // =====================================
+    // AMBASSADOR SYSTEM
+    // =====================================
+    match /ambassadors/{ambassadorId} {
+      // Tout le monde peut lire
+      allow read: if isAuthenticated();
+      // User authentifié peut écrire (pour inscription)
+      allow write: if isAuthenticated();
+    }
+
+    match /ambassadorInviteCodes/{codeId} {
+      // Tout le monde peut lire pour vérification
+      allow read: if true;
+      // Seul l'admin peut créer/modifier/supprimer
+      allow write: if isAdmin();
+    }
+
+    match /ambassadorEarnings/{earningId} {
+      // Ambassador peut lire ses gains, admin peut tout lire
+      allow read: if isAuthenticated();
+      // Système peut créer, admin peut modifier
+      allow write: if isAuthenticated();
+    }
+
+    match /ambassadorPayments/{paymentId} {
+      // Ambassador peut voir ses paiements, admin peut tout voir
+      allow read: if isAuthenticated();
+      // Seul l'admin peut créer/modifier les paiements
+      allow write: if isAdmin();
+    }
+    
+    // =====================================
+    // RÈGLE PAR DÉFAUT
+    // =====================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

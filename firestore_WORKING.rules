@@ -1,0 +1,159 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // =====================================
+    // FONCTIONS HELPER
+    // =====================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Vérifier si user est admin (avec protection)
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // =====================================
+    // USERS
+    // =====================================
+    match /users/{userId} {
+      // Tout le monde peut lire
+      allow read: if true;
+      
+      // Propriétaire ou Admin peut écrire
+      allow write: if isOwner(userId) || isAdmin();
+    }
+    
+    // =====================================
+    // STARTUPS
+    // =====================================
+    match /startups/{startupId} {
+      // Tout le monde peut lire
+      allow read: if true;
+      
+      // User authentifié peut créer
+      allow create: if isAuthenticated();
+      
+      // Propriétaire ou Admin peut modifier
+      allow update: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid || 
+        isAdmin()
+      );
+      
+      // Admin peut supprimer
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // PRODUCTS
+    // =====================================
+    match /products/{productId} {
+      // Tout le monde peut lire
+      allow read: if true;
+      
+      // User authentifié peut créer
+      allow create: if isAuthenticated();
+      
+      // Propriétaire startup ou Admin peut modifier/supprimer
+      allow update, delete: if isAuthenticated();
+    }
+    
+    // =====================================
+    // ORDERS
+    // =====================================
+    match /orders/{orderId} {
+      // User authentifié peut lire
+      allow read: if isAuthenticated();
+      
+      // User peut créer ses propres commandes
+      allow create: if isAuthenticated();
+      
+      // User ou Admin peut modifier
+      allow update: if isAuthenticated();
+      
+      // Admin peut supprimer
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // PROMO CODES
+    // =====================================
+    match /promoCodes/{promoId} {
+      // Tout le monde peut lire
+      allow read: if true;
+      
+      // User authentifié peut créer
+      allow create: if isAuthenticated();
+      
+      // User ou Admin peut modifier/supprimer
+      allow update, delete: if isAuthenticated();
+    }
+    
+    // =====================================
+    // CONVERSATIONS
+    // =====================================
+    match /conversations/{conversationId} {
+      // User authentifié peut lire/écrire
+      allow read, write: if isAuthenticated();
+    }
+    
+    // =====================================
+    // MESSAGES
+    // =====================================
+    match /messages/{messageId} {
+      // User authentifié peut lire/écrire
+      allow read, write: if isAuthenticated();
+    }
+    
+    // =====================================
+    // FAVORITES
+    // =====================================
+    match /favorites/{favoriteId} {
+      // User authentifié peut lire/écrire
+      allow read, write: if isAuthenticated();
+    }
+    
+    // =====================================
+    // REVIEWS
+    // =====================================
+    match /reviews/{reviewId} {
+      // Tout le monde peut lire
+      allow read: if true;
+      
+      // User authentifié peut écrire
+      allow write: if isAuthenticated();
+    }
+    
+    // =====================================
+    // NOTIFICATIONS
+    // =====================================
+    match /notifications/{notificationId} {
+      // User authentifié peut lire/écrire
+      allow read, write: if isAuthenticated();
+    }
+    
+    // =====================================
+    // ADDRESSES
+    // =====================================
+    match /addresses/{addressId} {
+      // User authentifié peut lire/écrire
+      allow read, write: if isAuthenticated();
+    }
+    
+    // =====================================
+    // RÈGLE PAR DÉFAUT
+    // =====================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

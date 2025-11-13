@@ -1,0 +1,210 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // =====================================
+    // FONCTIONS HELPER
+    // =====================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function ownsStartup(startupId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/startups/$(startupId)) &&
+        get(/databases/$(database)/documents/startups/$(startupId)).data.ownerId == request.auth.uid;
+    }
+    
+    // =====================================
+    // USERS
+    // =====================================
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isOwner(userId) || isAdmin();
+    }
+    
+    // =====================================
+    // STARTUPS
+    // =====================================
+    match /startups/{startupId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // PRODUCTS
+    // =====================================
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        ownsStartup(resource.data.startupId) || isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        ownsStartup(resource.data.startupId) || isAdmin()
+      );
+    }
+    
+    // =====================================
+    // ORDERS
+    // =====================================
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // PROMO CODES
+    // =====================================
+    match /promoCodes/{promoId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        ownsStartup(resource.data.startupId) || isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        ownsStartup(resource.data.startupId) || isAdmin()
+      );
+    }
+    
+    // =====================================
+    // CONVERSATIONS
+    // =====================================
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid in resource.data.participants || isAdmin()
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        request.auth.uid in resource.data.participants || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // MESSAGES
+    // =====================================
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() || isAdmin();
+      allow create: if isAuthenticated() && 
+        request.resource.data.senderId == request.auth.uid;
+      allow delete: if isAdmin();
+      allow update: if false;
+    }
+    
+    // =====================================
+    // FAVORITES
+    // =====================================
+    match /favorites/{favoriteId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+    
+    // =====================================
+    // REVIEWS
+    // =====================================
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+    
+    // =====================================
+    // NOTIFICATIONS
+    // =====================================
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+    
+    // =====================================
+    // ADDRESSES
+    // =====================================
+    match /addresses/{addressId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+    
+    // =====================================
+    // REPORTS
+    // =====================================
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+    
+    // =====================================
+    // PLATFORM SETTINGS
+    // =====================================
+    match /platformSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // =====================================
+    // ADMIN LOGS
+    // =====================================
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+    
+    // =====================================
+    // RÈGLE PAR DÉFAUT
+    // =====================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

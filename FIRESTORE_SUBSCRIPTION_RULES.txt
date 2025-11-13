@@ -1,0 +1,48 @@
+// À AJOUTER dans firestore.rules
+
+// =====================================
+// SUBSCRIPTIONS (ABONNEMENTS)
+// =====================================
+match /subscriptions/{subscriptionId} {
+  // Lire : startup propriétaire ou admin
+  allow read: if isAuthenticated() && (
+    resource.data.startupId == request.auth.uid || 
+    isAdmin()
+  );
+  
+  // Créer : startup elle-même
+  allow create: if isAuthenticated() && 
+                   request.resource.data.startupId == request.auth.uid;
+  
+  // Mettre à jour : startup propriétaire ou admin
+  allow update: if isAuthenticated() && (
+    resource.data.startupId == request.auth.uid || 
+    isAdmin()
+  );
+  
+  // Supprimer : admin uniquement
+  allow delete: if isAdmin();
+}
+
+// =====================================
+// SUBSCRIPTION PAYMENTS
+// =====================================
+match /subscriptionPayments/{paymentId} {
+  // Lire : startup propriétaire ou admin
+  allow read: if isAuthenticated() && (
+    resource.data.startupId == request.auth.uid || 
+    isAdmin()
+  );
+  
+  // Créer : startup elle-même ou système
+  allow create: if isAuthenticated();
+  
+  // Mettre à jour : startup propriétaire ou admin
+  allow update: if isAuthenticated() && (
+    resource.data.startupId == request.auth.uid || 
+    isAdmin()
+  );
+  
+  // Supprimer : admin uniquement
+  allow delete: if isAdmin();
+}

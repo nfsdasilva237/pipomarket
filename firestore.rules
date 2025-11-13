@@ -1,0 +1,252 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // =====================================
+    // FONCTIONS HELPER
+    // =====================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isStartupOwner(startupId) {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/startups/$(startupId)).data.ownerId == request.auth.uid;
+    }
+    
+    // =====================================
+    // USERS
+    // =====================================
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // STARTUPS
+    // =====================================
+    match /startups/{startupId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid || isAdmin()
+      );
+    }
+    
+    // =====================================
+    // PRODUCTS
+    // =====================================
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isStartupOwner(resource.data.startupId) || isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        isStartupOwner(resource.data.startupId) || isAdmin()
+      );
+    }
+    
+    // =====================================
+    // ORDERS
+    // =====================================
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // PROMO CODES
+    // =====================================
+    match /promoCodes/{promoId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.startupId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.startupId == request.auth.uid || isAdmin()
+      );
+    }
+    
+    // =====================================
+    // AMBASSADOR INVITE CODES
+    // =====================================
+    match /ambassadorInviteCodes/{codeId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        !resource.data.used && 
+        request.resource.data.used == true && 
+        request.resource.data.usedBy == request.auth.uid
+      );
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // AUTRES COLLECTIONS
+    // =====================================
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid in resource.data.participants || isAdmin()
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        request.auth.uid in resource.data.participants || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+    
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() || isAdmin();
+      allow create: if isAuthenticated() && 
+        request.resource.data.senderId == request.auth.uid;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+    
+    match /favorites/{favoriteId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+    
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+    
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+    
+    match /addresses/{addressId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+    
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+    
+    match /platformSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // PAYMENT SYSTEM
+    // =====================================
+    match /payments/{paymentId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // =====================================
+    // AMBASSADOR SYSTEM
+    // =====================================
+    match /ambassadors/{ambassadorId} {
+      // Tout le monde peut lire
+      allow read: if isAuthenticated();
+      // Seul l'admin peut écrire
+      allow write: if isAdmin();
+    }
+
+    match /ambassadorInviteCodes/{codeId} {
+      // Tout le monde peut lire pour vérification
+      allow read: if true;
+      // Seul l'admin peut créer/modifier/supprimer
+      allow write: if isAdmin();
+    }
+
+    match /ambassadorEarnings/{earningId} {
+      // Ambassador peut lire ses gains, admin peut tout lire
+      allow read: if isAuthenticated() && (
+        resource.data.ambassadorId == request.auth.uid || 
+        isAdmin()
+      );
+      // Seul l'admin peut modifier les gains
+      allow write: if isAdmin();
+    }
+
+    match /ambassadorPayments/{paymentId} {
+      // Ambassador peut voir ses paiements, admin peut tout voir
+      allow read: if isAuthenticated() && (
+        resource.data.ambassadorId == request.auth.uid || 
+        isAdmin()
+      );
+      // Seul l'admin peut créer/modifier les paiements
+      allow write: if isAdmin();
+    }
+    
+    // RÈGLE PAR DÉFAUT
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

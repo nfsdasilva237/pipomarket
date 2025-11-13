@@ -1,0 +1,405 @@
+==============================================
+  GUIDE D'INSTALLATION FIREBASE
+  PipoMarket - Système d'authentification
+==============================================
+
+📦 FICHIERS CRÉÉS:
+==================
+1. ✅ firebase.js - Configuration Firebase
+2. ✅ LoginScreen.js - Page de connexion
+3. ✅ RegisterScreen.js - Page d'inscription (Client/Startup)
+4. ✅ StartupDashboardScreen.js - Dashboard vendeur
+5. ✅ AddProductScreen.js - Ajouter un produit
+
+
+🔥 ÉTAPE 1: CRÉER UN PROJET FIREBASE
+=====================================
+
+1. Allez sur: https://console.firebase.google.com
+
+2. Cliquez sur "Ajouter un projet"
+
+3. Nom du projet: "PipoMarket"
+
+4. Activez Google Analytics (recommandé)
+
+5. Créez le projet (attendre 30 secondes)
+
+
+🌐 ÉTAPE 2: CONFIGURER L'APPLICATION WEB
+=========================================
+
+1. Dans le dashboard Firebase, cliquez sur l'icône Web: </>
+
+2. Nom de l'app: "PipoMarket"
+
+3. Cochez "Firebase Hosting" (optionnel)
+
+4. Cliquez sur "Enregistrer l'application"
+
+5. COPIEZ la configuration qui apparaît:
+
+const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "pipomarket-xxxxx.firebaseapp.com",
+  projectId: "pipomarket-xxxxx",
+  storageBucket: "pipomarket-xxxxx.appspot.com",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abcdef"
+};
+
+
+🔐 ÉTAPE 3: ACTIVER L'AUTHENTIFICATION
+=======================================
+
+1. Dans le menu Firebase, allez dans "Authentication"
+
+2. Cliquez sur "Commencer"
+
+3. Allez dans l'onglet "Sign-in method"
+
+4. Activez "Email/Password"
+   - Cliquez sur "Email/Password"
+   - Activez le premier bouton (Email/mot de passe)
+   - Cliquez "Enregistrer"
+
+
+💾 ÉTAPE 4: CONFIGURER FIRESTORE DATABASE
+==========================================
+
+1. Dans le menu Firebase, allez dans "Firestore Database"
+
+2. Cliquez sur "Créer une base de données"
+
+3. Choisissez "Démarrer en mode test"
+   (On sécurisera plus tard)
+
+4. Choisissez un emplacement: "eur3 (europe-west)"
+
+5. Cliquez "Activer"
+
+
+📂 ÉTAPE 5: CRÉER LES COLLECTIONS
+==================================
+
+Firestore va créer automatiquement les collections quand vous ajouterez des données.
+Mais voici la structure pour référence:
+
+Collections à créer:
+--------------------
+
+1. users/
+   - email (string)
+   - fullName (string)
+   - phone (string)
+   - role (string): "client" ou "startup"
+   - approved (boolean)
+   - startupName (string, seulement pour startups)
+   - category (string, seulement pour startups)
+   - createdAt (timestamp)
+
+2. startups/
+   - name (string)
+   - ownerId (string)
+   - category (string)
+   - description (string)
+   - image (string)
+   - logo (string)
+   - products (number)
+   - rating (number)
+   - verified (boolean)
+   - approved (boolean)
+   - deliveryTime (string)
+   - tags (array)
+   - createdAt (timestamp)
+
+3. products/
+   - startupId (string)
+   - name (string)
+   - price (number)
+   - stock (number)
+   - description (string)
+   - category (string)
+   - image (string)
+   - available (boolean)
+   - createdAt (timestamp)
+
+4. orders/
+   - userId (string)
+   - items (array)
+   - total (number)
+   - status (string): "pending", "confirmed", "delivered"
+   - deliveryInfo (object)
+   - paymentMethod (string)
+   - createdAt (timestamp)
+
+
+🔒 ÉTAPE 6: RÈGLES DE SÉCURITÉ FIRESTORE
+=========================================
+
+Allez dans "Firestore Database" > "Règles"
+
+Remplacez le contenu par:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users: lecture pour tous, écriture seulement pour soi-même
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId;
+    }
+    
+    // Startups: lecture pour tous
+    match /startups/{startupId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth.uid == startupId;
+    }
+    
+    // Products: lecture pour tous, écriture pour propriétaire startup
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+    
+    // Orders: lecture/écriture pour utilisateur concerné
+    match /orders/{orderId} {
+      allow read, create: if request.auth != null;
+      allow update: if request.auth != null;
+    }
+  }
+}
+
+Cliquez "Publier"
+
+
+📱 ÉTAPE 7: INSTALLER LES DÉPENDANCES
+======================================
+
+Dans votre terminal:
+
+cd C:\Users\SHOGUN\pipomarket
+npm install firebase
+npm install @react-native-async-storage/async-storage
+
+
+📝 ÉTAPE 8: CONFIGURER FIREBASE DANS LE PROJET
+===============================================
+
+1. Créez le dossier "config":
+
+mkdir config
+
+2. Déplacez "firebase.js" dans ce dossier:
+
+move firebase.js config\
+
+3. Ouvrez "config/firebase.js"
+
+4. REMPLACEZ la configuration (ligne 15-21) par VOS clés Firebase copiées à l'étape 2
+
+
+🗂️ ÉTAPE 9: CRÉER LE DOSSIER SCREENS
+======================================
+
+Si pas déjà fait:
+
+mkdir screens
+
+Déplacez tous les fichiers *Screen.js dans ce dossier:
+- LoginScreen.js
+- RegisterScreen.js
+- StartupDashboardScreen.js
+- AddProductScreen.js
+
+
+🧭 ÉTAPE 10: CONFIGURER LA NAVIGATION
+======================================
+
+Ouvrez "App.js" et ajoutez les nouvelles routes:
+
+import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/RegisterScreen';
+import StartupDashboardScreen from './screens/StartupDashboardScreen';
+import AddProductScreen from './screens/AddProductScreen';
+
+// Dans votre Stack.Navigator:
+
+<Stack.Screen name="Login" component={LoginScreen} />
+<Stack.Screen name="Register" component={RegisterScreen} />
+<Stack.Screen name="StartupDashboard" component={StartupDashboardScreen} />
+<Stack.Screen name="AddProduct" component={AddProductScreen} />
+
+
+🚀 ÉTAPE 11: TESTER L'APPLICATION
+==================================
+
+1. Relancez le serveur:
+
+npm start
+
+2. Appuyez sur 'w' pour ouvrir dans le navigateur
+
+3. Testez l'inscription:
+   - Créez un compte CLIENT
+   - Créez un compte STARTUP
+
+4. Testez la connexion
+
+5. Testez le dashboard startup (si approuvé)
+
+
+👑 ÉTAPE 12: CRÉER UN COMPTE ADMIN (IMPORTANT)
+===============================================
+
+Pour valider les startups, vous avez besoin d'un admin.
+
+Option 1: Modifier manuellement dans Firebase Console
+------------------------------------------------------
+1. Allez dans Firestore Database
+2. Ouvrez la collection "users"
+3. Trouvez VOTRE compte
+4. Ajoutez un champ: 
+   - Nom: "role"
+   - Type: string
+   - Valeur: "admin"
+
+
+Option 2: Créer un compte admin par code
+-----------------------------------------
+(On peut créer un écran AdminScreen si vous voulez)
+
+
+🛡️ VALIDATION DES STARTUPS
+===========================
+
+Les comptes startup sont créés avec:
+- approved: false
+
+Un admin doit les valider manuellement dans Firebase Console:
+1. Allez dans "users"
+2. Trouvez le compte startup
+3. Changez "approved" à "true"
+4. Faites pareil dans "startups"
+
+La startup pourra alors se connecter!
+
+
+📊 STRUCTURE FINALE DU PROJET
+==============================
+
+pipomarket/
+├── config/
+│   └── firebase.js
+├── screens/
+│   ├── HomeScreen.js
+│   ├── StartupsScreen.js
+│   ├── StartupDetailScreen.js
+│   ├── CartScreen.js
+│   ├── CheckoutScreen.js
+│   ├── LoginScreen.js ← NOUVEAU
+│   ├── RegisterScreen.js ← NOUVEAU
+│   ├── StartupDashboardScreen.js ← NOUVEAU
+│   └── AddProductScreen.js ← NOUVEAU
+├── data/
+│   └── appData.js
+├── App.js
+└── package.json
+
+
+✅ CHECKLIST FINALE
+===================
+
+□ Projet Firebase créé
+□ Application web configurée
+□ Clés Firebase copiées dans firebase.js
+□ Authentication activée (Email/Password)
+□ Firestore Database créée
+□ Règles de sécurité configurées
+□ Dépendances installées (npm install firebase)
+□ Fichiers dans les bons dossiers (config/, screens/)
+□ Navigation configurée dans App.js
+□ Application relancée (npm start)
+□ Test inscription client ✓
+□ Test inscription startup ✓
+□ Test connexion ✓
+□ Compte admin créé pour validation startups
+
+
+🎯 FONCTIONNALITÉS DISPONIBLES
+===============================
+
+CLIENTS:
+✅ Inscription
+✅ Connexion
+✅ Parcourir les startups
+✅ Ajouter au panier
+✅ Passer commande
+✅ Mode invité (sans compte)
+
+STARTUPS:
+✅ Inscription (avec validation admin)
+✅ Connexion
+✅ Dashboard vendeur
+✅ Ajouter des produits
+✅ Modifier des produits (TODO: EditProductScreen)
+✅ Marquer disponible/indisponible
+✅ Supprimer des produits
+✅ Voir les statistiques
+
+
+🚧 À FAIRE ENSUITE (OPTIONNEL)
+===============================
+
+1. EditProductScreen (modifier un produit)
+2. AdminDashboard (valider les startups)
+3. OrdersScreen (historique commandes client)
+4. StartupOrdersScreen (commandes reçues startup)
+5. ProfileScreen (profil utilisateur)
+6. Upload photos produits (Firebase Storage)
+7. Notifications push
+8. Suivi de livraison en temps réel
+
+
+💡 CONSEILS
+===========
+
+- Sauvegardez vos clés Firebase en sécurité
+- Ne partagez JAMAIS votre firebase.js avec les clés
+- Activez l'authentification à 2 facteurs sur Firebase
+- Surveillez les quotas gratuits (50K lectures/jour)
+- Testez toujours sur plusieurs appareils
+
+
+❓ PROBLÈMES COURANTS
+=====================
+
+1. "Firebase: Error (auth/configuration-not-found)"
+   → Vérifiez que vous avez bien copié TOUTES les clés
+
+2. "Permission denied"
+   → Vérifiez les règles de sécurité Firestore
+
+3. "Cannot read property 'uid' of null"
+   → L'utilisateur n'est pas connecté
+
+4. "Module not found: firebase"
+   → Exécutez: npm install firebase
+
+
+📞 SUPPORT
+==========
+
+En cas de problème:
+1. Vérifiez la console Firebase (onglet Authentication, Firestore)
+2. Vérifiez la console du navigateur (F12)
+3. Relancez: npm start
+
+
+==============================================
+  FÉLICITATIONS ! 🎉
+  Votre système d'authentification est prêt !
+==============================================
