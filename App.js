@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { auth } from './config/firebase';
+import adminService from './utils/adminService';
 import { notificationService } from './utils/notificationService';
 // Importation des écrans
 import AddProductScreen from './screens/AddProductScreen';
@@ -187,10 +188,43 @@ export default function App() {
   // État global du panier et des notifications
  const [cart, setCart] = useState([]);
 const [cartLoaded, setCartLoaded] = useState(false);
+const [initializing, setInitializing] = useState(true);
+const [initialRoute, setInitialRoute] = useState('Login');
 
 // Charger panier au démarrage
 useEffect(() => {
   loadCartFromStorage();
+}, []);
+
+// Vérifier l'authentification au démarrage
+useEffect(() => {
+  const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    if (user) {
+      try {
+        // Récupérer le rôle de l'utilisateur
+        const role = await adminService.getUserRole(user.uid);
+
+        // Définir l'écran initial selon le rôle
+        if (role === 'admin') {
+          setInitialRoute('AdminDashboard');
+        } else if (role === 'startup') {
+          setInitialRoute('StartupDashboard');
+        } else if (role === 'ambassador') {
+          setInitialRoute('AmbassadorDashboard');
+        } else {
+          setInitialRoute('Home');
+        }
+      } catch (error) {
+        console.error('Erreur récupération rôle:', error);
+        setInitialRoute('Login');
+      }
+    } else {
+      setInitialRoute('Login');
+    }
+    setInitializing(false);
+  });
+
+  return unsubscribe;
 }, []);
 
 const loadCartFromStorage = async () => {
@@ -340,10 +374,21 @@ const saveCartToStorage = async () => {
 };
   const cartItemCount = cart.reduce((total, item) => total + item.quantity, 0);
 
+  // Afficher écran de chargement pendant vérification auth
+  if (initializing) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingLogo}>🛒</Text>
+        <Text style={styles.loadingText}>PipoMarket</Text>
+        <Text style={styles.loadingSubtext}>Chargement...</Text>
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Login"
+        initialRouteName={initialRoute}
         screenOptions={{
           headerStyle: {
             backgroundColor: '#007AFF',
@@ -698,5 +743,25 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 9,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  loadingLogo: {
+    fontSize: 80,
+    marginBottom: 20,
+  },
+  loadingText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginBottom: 8,
+  },
+  loadingSubtext: {
+    fontSize: 16,
+    color: '#8E8E93',
   },
 });
