@@ -48,9 +48,14 @@ export default function RegisterScreen({ navigation }) {
   };
 
   // Valider code ambassadeur en temps réel
-  const handleAmbassadorCodeChange = (code) => {
+  const handleAmbassadorCodeChange = async (code) => {
     setAmbassadorCode(code);
-    setAmbassadorCodeValid(ambassadorService.verifyAmbassadorCode(code));
+    if (code) {
+      const isValid = await ambassadorService.verifyAmbassadorCode(code);
+      setAmbassadorCodeValid(isValid);
+    } else {
+      setAmbassadorCodeValid(false);
+    }
   };
 
   const handleRegister = async () => {

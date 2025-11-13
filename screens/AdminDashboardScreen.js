@@ -210,6 +210,39 @@ export default function AdminDashboardScreen({ navigation }) {
     );
   };
 
+  const handleDeleteInviteCode = (codeId, code) => {
+    Alert.alert(
+      'Supprimer code',
+      `Voulez-vous supprimer le code "${code}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await ambassadorService.deleteInviteCode(codeId);
+            if (result.success) {
+              Alert.alert('Succès', 'Code supprimé');
+              loadTabData('ambassadors');
+            } else {
+              Alert.alert('Erreur', result.error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleToggleInviteCode = async (codeId, code, isDisabled) => {
+    const result = await ambassadorService.toggleInviteCode(codeId, isDisabled);
+    if (result.success) {
+      Alert.alert('Succès', `Code ${isDisabled ? 'activé' : 'désactivé'}`);
+      loadTabData('ambassadors');
+    } else {
+      Alert.alert('Erreur', result.error);
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert(
       'Déconnexion',
@@ -786,10 +819,10 @@ export default function AdminDashboardScreen({ navigation }) {
                     <Text style={styles.itemName}>{code.code}</Text>
                     <View style={[
                       styles.statusBadge,
-                      { backgroundColor: code.used ? '#FF3B30' : '#34C759' }
+                      { backgroundColor: code.used ? '#FF3B30' : code.disabled ? '#8E8E93' : '#34C759' }
                     ]}>
                       <Text style={styles.statusText}>
-                        {code.used ? 'Utilisé' : 'Disponible'}
+                        {code.used ? 'Utilisé' : code.disabled ? 'Désactivé' : 'Disponible'}
                       </Text>
                     </View>
                   </View>
@@ -806,6 +839,24 @@ export default function AdminDashboardScreen({ navigation }) {
                   <Text style={styles.itemDetail}>
                     Créé le: {new Date(code.createdAt.toDate()).toLocaleDateString()}
                   </Text>
+                  <View style={styles.itemActions}>
+                    {!code.used && (
+                      <TouchableOpacity
+                        style={[styles.itemButton, { backgroundColor: code.disabled ? '#34C759' : '#FF9500' }]}
+                        onPress={() => handleToggleInviteCode(code.id, code.code, code.disabled)}
+                      >
+                        <Text style={styles.itemButtonText}>
+                          {code.disabled ? 'Activer' : 'Désactiver'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                      style={[styles.itemButton, { backgroundColor: '#FF3B30' }]}
+                      onPress={() => handleDeleteInviteCode(code.id, code.code)}
+                    >
+                      <Text style={styles.itemButtonText}>Supprimer</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             )}
