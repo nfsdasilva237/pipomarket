@@ -1,5 +1,5 @@
 // screens/AmbassadorDashboardScreen.js - DASHBOARD AMBASSADEUR
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,11 +20,7 @@ export default function AmbassadorDashboardScreen({ navigation }) {
   const [ambassador, setAmbassador] = useState(null);
   const [earnings, setEarnings] = useState([]);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
-
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     try {
       // Charger infos ambassadeur
       const result = await ambassadorService.getAmbassadorByUserId(auth.currentUser.uid);
@@ -49,7 +45,11 @@ export default function AmbassadorDashboardScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [navigation]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -162,7 +162,7 @@ export default function AmbassadorDashboardScreen({ navigation }) {
           <View style={styles.howItWorksCard}>
             <Text style={styles.howItWorksStep}>1️⃣  Partagez votre code</Text>
             <Text style={styles.howItWorksDescription}>
-              Invitez vos amis à s'inscrire avec votre code
+              Invitez vos amis à s&apos;inscrire avec votre code
             </Text>
             
             <Text style={styles.howItWorksStep}>2️⃣  Ils commandent</Text>

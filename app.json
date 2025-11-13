@@ -1,5 +1,70 @@
 {
-  "android": {
-    "package": "com.anonymous.pipomarket"
+  "expo": {
+    "name": "PipoMarket",
+    "slug": "pipomarket",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "pipomarket",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pipomarket.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "L'application a besoin d'accéder à vos photos pour changer votre photo de profil.",
+        "NSCameraUsageDescription": "L'application a besoin d'accéder à votre caméra pour prendre votre photo de profil.",
+        "NSPhotoLibraryAddUsageDescription": "L'application a besoin d'accéder à votre bibliothèque pour sauvegarder des images."
+      }
+    },
+    "android": {
+      "package": "com.pipomarket.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundColor": "#ffffff",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "L'application a besoin d'accéder à vos photos pour changer votre photo de profil.",
+          "cameraPermission": "L'application a besoin d'accéder à votre caméra pour prendre votre photo de profil."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#ffffff",
+          "sounds": []
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "votre-project-id-eas-ici"
+      }
+    }
   }
 }

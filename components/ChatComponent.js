@@ -50,7 +50,7 @@ export default function ChatComponent({
     return () => {
       unsubscribeMessages();
     };
-  }, [conversationId]);
+  }, [conversationId, currentUserId]);
 
   const scrollToBottom = () => {
     setTimeout(() => {

@@ -1,5 +1,5 @@
 // components/RecommendationsSection.js - Composant d'affichage des recommandations
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import AIRecommendationsService from '../services/AIRecommendations';
 
-export default function RecommendationsSection({ 
+export default function RecommendationsSection({
   type = 'similar', // 'similar', 'personalized', 'new', 'local'
   productId = null,
   productCategory = null,
@@ -22,11 +22,7 @@ export default function RecommendationsSection({
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadRecommendations();
-  }, [type, productId, userId]);
-
-  const loadRecommendations = async () => {
+  const loadRecommendations = useCallback(async () => {
     setLoading(true);
     try {
       let results = [];
@@ -66,7 +62,11 @@ export default function RecommendationsSection({
     } finally {
       setLoading(false);
     }
-  };
+  }, [type, productId, productCategory, userId, userCity]);
+
+  useEffect(() => {
+    loadRecommendations();
+  }, [loadRecommendations]);
 
   const getTitle = () => {
     switch (type) {
