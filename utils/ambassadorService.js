@@ -410,6 +410,31 @@ export const ambassadorService = {
     }
   },
 
+  // SUPPRIMER UN CODE D'INVITATION (ADMIN)
+  deleteInviteCode: async (codeId) => {
+    try {
+      const { deleteDoc } = await import('firebase/firestore');
+      await deleteDoc(doc(db, 'ambassadorInviteCodes', codeId));
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur suppression code:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // ACTIVER/DÉSACTIVER UN CODE D'INVITATION (ADMIN)
+  toggleInviteCode: async (codeId, currentStatus) => {
+    try {
+      await updateDoc(doc(db, 'ambassadorInviteCodes', codeId), {
+        disabled: !currentStatus,
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur toggle code:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
   // GÉNÉRER UN NOUVEAU CODE D'INVITATION (ADMIN)
   generateInviteCode: async () => {
     try {

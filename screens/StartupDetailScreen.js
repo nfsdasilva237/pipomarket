@@ -125,7 +125,11 @@ export default function StartupDetailScreen({ route, navigation }) {
         <View style={styles.startupCard}>
           <View style={styles.startupHeader}>
             <View style={styles.startupLogo}>
-              <Text style={styles.startupLogoText}>{startup.logo || '🏪'}</Text>
+              {startup.logoType === 'image' && startup.logo ? (
+                <Image source={{ uri: startup.logo }} style={styles.startupLogoImage} />
+              ) : (
+                <Text style={styles.startupLogoText}>{startup.logo || '🏪'}</Text>
+              )}
             </View>
             <View style={styles.startupInfo}>
               <View style={styles.nameRow}>
@@ -298,6 +302,11 @@ const styles = StyleSheet.create({
   },
   startupLogoText: {
     fontSize: 40,
+  },
+  startupLogoImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   startupInfo: {
     flex: 1,
