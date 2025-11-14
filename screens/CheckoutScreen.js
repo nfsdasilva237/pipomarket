@@ -19,8 +19,9 @@ export default function CheckoutScreen({ navigation, route, cart, clearCart }) {
   const { deliveryAddress } = route.params || {};
   
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
-  
+  const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
+  const [mobileMoneyProvider, setMobileMoneyProvider] = useState(null); // 'mtn' ou 'orange'
+
   // CODES PROMO
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState(null);
@@ -97,6 +98,12 @@ export default function CheckoutScreen({ navigation, route, cart, clearCart }) {
       return;
     }
 
+    // Vérifier que le provider mobile money est sélectionné si paiement mobile
+    if (paymentMethod === 'mobile_money' && !mobileMoneyProvider) {
+      Alert.alert('Erreur', 'Veuillez choisir MTN ou Orange Money');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -138,6 +145,7 @@ export default function CheckoutScreen({ navigation, route, cart, clearCart }) {
         // Autres infos
         deliveryAddress: deliveryAddress,
         paymentMethod: paymentMethod,
+        mobileMoneyProvider: paymentMethod === 'mobile_money' ? mobileMoneyProvider : null,
         status: 'pending',
         createdAt: serverTimestamp(),
       };
@@ -152,9 +160,40 @@ export default function CheckoutScreen({ navigation, route, cart, clearCart }) {
       // Vider le panier
       clearCart();
 
+      // Message selon le mode de paiement
+      let paymentInstructions = '';
+      if (paymentMethod === 'mobile_money' && mobileMoneyProvider) {
+        // Grouper les items par startup pour les paiements
+        const startupGroups = cart.reduce((acc, item) => {
+          if (!acc[item.startupId]) {
+            acc[item.startupId] = {
+              name: item.startupName,
+              total: 0,
+            };
+          }
+          acc[item.startupId].total += item.price * item.quantity;
+          return acc;
+        }, {});
+
+        const startupPayments = Object.values(startupGroups);
+        const phoneExample = deliveryAddress.phone || '6XXXXXXXX';
+
+        if (mobileMoneyProvider === 'mtn') {
+          paymentInstructions = `\n\n📱 PAIEMENT MOBILE MONEY (MTN)\n\nComposez le code suivant pour chaque startup:\n\n${startupPayments.map(sp =>
+            `🏢 ${sp.name}:\n*126*1*1*[NUMÉRO_STARTUP]*${sp.total}#`
+          ).join('\n\n')}\n\nRemplacez [NUMÉRO_STARTUP] par le numéro Mobile Money de la startup.`;
+        } else if (mobileMoneyProvider === 'orange') {
+          paymentInstructions = `\n\n📱 PAIEMENT ORANGE MONEY\n\nComposez le code suivant pour chaque startup:\n\n${startupPayments.map(sp =>
+            `🏢 ${sp.name}:\n#150*1*1*[NUMÉRO_STARTUP]*${sp.total}#`
+          ).join('\n\n')}\n\nRemplacez [NUMÉRO_STARTUP] par le numéro Orange Money de la startup.`;
+        }
+      } else if (paymentMethod === 'cash_on_delivery') {
+        paymentInstructions = '\n\n💵 PAIEMENT À LA LIVRAISON\n\nVous paierez en espèces lors de la réception de votre commande.';
+      }
+
       Alert.alert(
         '✅ Commande confirmée !',
-        `Votre commande #${docRef.id.slice(0, 8)} a été enregistrée.\n\nTotal: ${total.toLocaleString('fr-FR')} FCFA`,
+        `Votre commande #${docRef.id.slice(0, 8)} a été enregistrée.\n\nTotal: ${total.toLocaleString('fr-FR')} FCFA${paymentInstructions}`,
         [
           {
             text: 'Voir mes commandes',
@@ -269,32 +308,17 @@ export default function CheckoutScreen({ navigation, route, cart, clearCart }) {
         {/* MODE DE PAIEMENT */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>💳 Mode de paiement</Text>
-          
-          <TouchableOpacity
-            style={[
-              styles.paymentOption,
-              paymentMethod === 'mobile_money' && styles.paymentOptionSelected,
-            ]}
-            onPress={() => setPaymentMethod('mobile_money')}
-          >
-            <View style={styles.paymentOptionContent}>
-              <Text style={styles.paymentOptionIcon}>📱</Text>
-              <View style={styles.paymentOptionText}>
-                <Text style={styles.paymentOptionTitle}>Mobile Money</Text>
-                <Text style={styles.paymentOptionSubtitle}>MTN / Orange Money</Text>
-              </View>
-            </View>
-            {paymentMethod === 'mobile_money' && (
-              <Text style={styles.checkmark}>✓</Text>
-            )}
-          </TouchableOpacity>
 
+          {/* PAIEMENT À LA LIVRAISON */}
           <TouchableOpacity
             style={[
               styles.paymentOption,
               paymentMethod === 'cash_on_delivery' && styles.paymentOptionSelected,
             ]}
-            onPress={() => setPaymentMethod('cash_on_delivery')}
+            onPress={() => {
+              setPaymentMethod('cash_on_delivery');
+              setMobileMoneyProvider(null);
+            }}
           >
             <View style={styles.paymentOptionContent}>
               <Text style={styles.paymentOptionIcon}>💵</Text>
@@ -307,6 +331,75 @@ export default function CheckoutScreen({ navigation, route, cart, clearCart }) {
               <Text style={styles.checkmark}>✓</Text>
             )}
           </TouchableOpacity>
+
+          {/* MOBILE MONEY */}
+          <TouchableOpacity
+            style={[
+              styles.paymentOption,
+              paymentMethod === 'mobile_money' && styles.paymentOptionSelected,
+            ]}
+            onPress={() => setPaymentMethod('mobile_money')}
+          >
+            <View style={styles.paymentOptionContent}>
+              <Text style={styles.paymentOptionIcon}>📱</Text>
+              <View style={styles.paymentOptionText}>
+                <Text style={styles.paymentOptionTitle}>Paiement Mobile</Text>
+                <Text style={styles.paymentOptionSubtitle}>MTN / Orange Money</Text>
+              </View>
+            </View>
+            {paymentMethod === 'mobile_money' && (
+              <Text style={styles.checkmark}>✓</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* SOUS-OPTIONS MOBILE MONEY */}
+          {paymentMethod === 'mobile_money' && (
+            <View style={styles.mobileMoneyOptions}>
+              <Text style={styles.mobileMoneyLabel}>Choisissez votre opérateur:</Text>
+
+              {/* MTN */}
+              <TouchableOpacity
+                style={[
+                  styles.providerOption,
+                  mobileMoneyProvider === 'mtn' && styles.providerOptionSelected,
+                ]}
+                onPress={() => setMobileMoneyProvider('mtn')}
+              >
+                <View style={styles.providerContent}>
+                  <Text style={styles.providerIcon}>💛</Text>
+                  <View style={styles.providerText}>
+                    <Text style={styles.providerTitle}>Mobile Money</Text>
+                    <Text style={styles.providerSubtitle}>MTN Cameroon</Text>
+                    <Text style={styles.providerCode}>*126*1*1*...</Text>
+                  </View>
+                </View>
+                {mobileMoneyProvider === 'mtn' && (
+                  <Text style={styles.providerCheckmark}>✓</Text>
+                )}
+              </TouchableOpacity>
+
+              {/* ORANGE */}
+              <TouchableOpacity
+                style={[
+                  styles.providerOption,
+                  mobileMoneyProvider === 'orange' && styles.providerOptionSelected,
+                ]}
+                onPress={() => setMobileMoneyProvider('orange')}
+              >
+                <View style={styles.providerContent}>
+                  <Text style={styles.providerIcon}>🧡</Text>
+                  <View style={styles.providerText}>
+                    <Text style={styles.providerTitle}>Orange Money</Text>
+                    <Text style={styles.providerSubtitle}>Orange Cameroun</Text>
+                    <Text style={styles.providerCode}>#150*1*1*...</Text>
+                  </View>
+                </View>
+                {mobileMoneyProvider === 'orange' && (
+                  <Text style={styles.providerCheckmark}>✓</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* TOTAL */}
@@ -420,6 +513,19 @@ const styles = StyleSheet.create({
   paymentOptionTitle: { fontSize: 15, fontWeight: 'bold', color: '#000', marginBottom: 2 },
   paymentOptionSubtitle: { fontSize: 13, color: '#666' },
   checkmark: { fontSize: 24, color: '#007AFF', fontWeight: 'bold' },
+
+  // Mobile Money Options
+  mobileMoneyOptions: { marginLeft: 16, marginTop: 8, marginBottom: 8, paddingLeft: 16, borderLeftWidth: 3, borderLeftColor: '#007AFF' },
+  mobileMoneyLabel: { fontSize: 14, fontWeight: '600', color: '#007AFF', marginBottom: 12 },
+  providerOption: { backgroundColor: '#F9F9F9', borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 2, borderColor: '#E5E5EA' },
+  providerOptionSelected: { borderColor: '#34C759', backgroundColor: '#F0FFF4' },
+  providerContent: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  providerIcon: { fontSize: 28, marginRight: 12 },
+  providerText: { flex: 1 },
+  providerTitle: { fontSize: 14, fontWeight: 'bold', color: '#000', marginBottom: 2 },
+  providerSubtitle: { fontSize: 12, color: '#666', marginBottom: 2 },
+  providerCode: { fontSize: 11, color: '#8E8E93', fontFamily: 'monospace' },
+  providerCheckmark: { fontSize: 20, color: '#34C759', fontWeight: 'bold' },
   
   // Total
   totalCard: { backgroundColor: 'white', borderRadius: 12, padding: 16 },
