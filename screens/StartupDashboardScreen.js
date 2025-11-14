@@ -44,6 +44,8 @@ export default function StartupDashboardScreen({ route, navigation }) {
   const [activeTab, setActiveTab] = useState('overview');
   // ✅ PHASE 1: Stats abonnement
   const [subscriptionStats, setSubscriptionStats] = useState(null);
+  // Filtre pour les commandes
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
 
   useEffect(() => {
     loadDashboard();
@@ -315,6 +317,26 @@ export default function StartupDashboardScreen({ route, navigation }) {
       delivered: `Votre commande de ${startupName} a été livrée`
     };
     return bodies[status] || `Le statut de votre commande chez ${startupName} a été mis à jour`;
+  };
+
+  // Statistiques par statut
+  const getOrderStats = () => {
+    const stats = {
+      all: orders.length,
+      pending: orders.filter(o => o.status === 'pending').length,
+      processing: orders.filter(o => o.status === 'processing').length,
+      shipped: orders.filter(o => o.status === 'shipped').length,
+      delivered: orders.filter(o => o.status === 'delivered').length,
+    };
+    return stats;
+  };
+
+  // Filtrer les commandes
+  const getFilteredOrders = () => {
+    if (orderStatusFilter === 'all') {
+      return orders;
+    }
+    return orders.filter(o => o.status === orderStatusFilter);
   };
 
   // RENDU
@@ -738,55 +760,232 @@ export default function StartupDashboardScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* ONGLET COMMANDES */}
+        {/* ONGLET COMMANDES AMÉLIORÉ */}
         {activeTab === 'orders' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🛒 Commandes ({orders.length})</Text>
+            <Text style={styles.sectionTitle}>🛒 Gestion des Commandes</Text>
+
+            {/* Statistiques par statut */}
+            {orders.length > 0 && (
+              <View style={styles.orderStatsContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.orderStatCard,
+                    orderStatusFilter === 'all' && styles.orderStatCardActive
+                  ]}
+                  onPress={() => setOrderStatusFilter('all')}
+                >
+                  <LinearGradient
+                    colors={orderStatusFilter === 'all' ? ['#667eea', '#764ba2'] : ['#f5f5f5', '#e0e0e0']}
+                    style={styles.orderStatGradient}
+                  >
+                    <Text style={[styles.orderStatNumber, orderStatusFilter === 'all' && styles.orderStatTextActive]}>
+                      {getOrderStats().all}
+                    </Text>
+                    <Text style={[styles.orderStatLabel, orderStatusFilter === 'all' && styles.orderStatTextActive]}>
+                      Toutes
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.orderStatCard,
+                    orderStatusFilter === 'pending' && styles.orderStatCardActive
+                  ]}
+                  onPress={() => setOrderStatusFilter('pending')}
+                >
+                  <LinearGradient
+                    colors={orderStatusFilter === 'pending' ? ['#FFA500', '#FF8C00'] : ['#f5f5f5', '#e0e0e0']}
+                    style={styles.orderStatGradient}
+                  >
+                    <Text style={[styles.orderStatNumber, orderStatusFilter === 'pending' && styles.orderStatTextActive]}>
+                      {getOrderStats().pending}
+                    </Text>
+                    <Text style={[styles.orderStatLabel, orderStatusFilter === 'pending' && styles.orderStatTextActive]}>
+                      En attente
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.orderStatCard,
+                    orderStatusFilter === 'processing' && styles.orderStatCardActive
+                  ]}
+                  onPress={() => setOrderStatusFilter('processing')}
+                >
+                  <LinearGradient
+                    colors={orderStatusFilter === 'processing' ? ['#4facfe', '#00f2fe'] : ['#f5f5f5', '#e0e0e0']}
+                    style={styles.orderStatGradient}
+                  >
+                    <Text style={[styles.orderStatNumber, orderStatusFilter === 'processing' && styles.orderStatTextActive]}>
+                      {getOrderStats().processing}
+                    </Text>
+                    <Text style={[styles.orderStatLabel, orderStatusFilter === 'processing' && styles.orderStatTextActive]}>
+                      En préparation
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.orderStatCard,
+                    orderStatusFilter === 'shipped' && styles.orderStatCardActive
+                  ]}
+                  onPress={() => setOrderStatusFilter('shipped')}
+                >
+                  <LinearGradient
+                    colors={orderStatusFilter === 'shipped' ? ['#11998e', '#38ef7d'] : ['#f5f5f5', '#e0e0e0']}
+                    style={styles.orderStatGradient}
+                  >
+                    <Text style={[styles.orderStatNumber, orderStatusFilter === 'shipped' && styles.orderStatTextActive]}>
+                      {getOrderStats().shipped}
+                    </Text>
+                    <Text style={[styles.orderStatLabel, orderStatusFilter === 'shipped' && styles.orderStatTextActive]}>
+                      Expédiées
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.orderStatCard,
+                    orderStatusFilter === 'delivered' && styles.orderStatCardActive
+                  ]}
+                  onPress={() => setOrderStatusFilter('delivered')}
+                >
+                  <LinearGradient
+                    colors={orderStatusFilter === 'delivered' ? ['#38ef7d', '#11998e'] : ['#f5f5f5', '#e0e0e0']}
+                    style={styles.orderStatGradient}
+                  >
+                    <Text style={[styles.orderStatNumber, orderStatusFilter === 'delivered' && styles.orderStatTextActive]}>
+                      {getOrderStats().delivered}
+                    </Text>
+                    <Text style={[styles.orderStatLabel, orderStatusFilter === 'delivered' && styles.orderStatTextActive]}>
+                      Livrées
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Liste des commandes filtrées */}
             {orders.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>🛒</Text>
                 <Text style={styles.emptyText}>Aucune commande</Text>
               </View>
+            ) : getFilteredOrders().length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>🔍</Text>
+                <Text style={styles.emptyText}>Aucune commande avec ce statut</Text>
+              </View>
             ) : (
-              orders.map(order => {
+              getFilteredOrders().map(order => {
                 const startupItems = order.items?.filter(item => item.startupId === startupId) || [];
-                const orderTotal = startupItems.reduce((sum, item) => 
+                const orderTotal = startupItems.reduce((sum, item) =>
                   sum + (item.price * item.quantity), 0
                 );
 
                 return (
-                  <View key={order.id} style={styles.orderCard}>
-                    <View style={styles.orderHeader}>
-                      <Text style={styles.orderId}>#{order.id.slice(0, 8)}</Text>
-                      <View style={styles.orderActions}>
-                        <TouchableOpacity
-                          onPress={() => {
-                            Alert.alert(
-                              'Mettre à jour le statut',
-                              'Choisir le nouveau statut',
-                              [
-                                { text: 'En préparation', onPress: () => updateOrderStatus(order.id, 'processing') },
-                                { text: 'Expédié', onPress: () => updateOrderStatus(order.id, 'shipped') },
-                                { text: 'Livré', onPress: () => updateOrderStatus(order.id, 'delivered') },
-                                { text: 'Annuler', style: 'cancel' }
-                              ]
-                            );
-                          }}
-                          style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}
-                        >
-                          <Text style={styles.statusText}>{getStatusLabel(order.status)}</Text>
-                        </TouchableOpacity>
+                  <View key={order.id} style={styles.orderCardEnhanced}>
+                    {/* En-tête de la commande */}
+                    <View style={styles.orderHeaderEnhanced}>
+                      <View style={styles.orderHeaderLeft}>
+                        <Text style={styles.orderIdEnhanced}>#{order.id.slice(0, 8)}</Text>
+                        <Text style={styles.orderDateEnhanced}>
+                          {order.createdAt?.toDate?.()?.toLocaleDateString('fr-FR', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                          }) || 'Date inconnue'}
+                        </Text>
                       </View>
+                      <TouchableOpacity
+                        style={[styles.statusBadgeEnhanced, { backgroundColor: getStatusColor(order.status) }]}
+                        onPress={() => {
+                          Alert.alert(
+                            'Mettre à jour le statut',
+                            'Choisir le nouveau statut',
+                            [
+                              { text: 'En préparation', onPress: () => updateOrderStatus(order.id, 'processing') },
+                              { text: 'Expédié', onPress: () => updateOrderStatus(order.id, 'shipped') },
+                              { text: 'Livré', onPress: () => updateOrderStatus(order.id, 'delivered') },
+                              { text: 'Annuler', style: 'cancel' }
+                            ]
+                          );
+                        }}
+                      >
+                        <Text style={styles.statusTextEnhanced}>{getStatusLabel(order.status)}</Text>
+                      </TouchableOpacity>
                     </View>
-                    <Text style={styles.orderItems}>
-                      {startupItems.length} article{startupItems.length > 1 ? 's' : ''}
-                    </Text>
-                    <Text style={styles.orderTotal}>
-                      {orderTotal.toLocaleString('fr-FR')} FCFA
-                    </Text>
-                    <Text style={styles.orderDate}>
-                      {order.createdAt?.toDate?.()?.toLocaleDateString('fr-FR') || 'Date inconnue'}
-                    </Text>
+
+                    {/* Informations client */}
+                    {order.shippingAddress && (
+                      <View style={styles.orderClientInfo}>
+                        <Text style={styles.orderClientIcon}>👤</Text>
+                        <View style={styles.orderClientDetails}>
+                          <Text style={styles.orderClientName}>{order.shippingAddress.name || 'Client'}</Text>
+                          <Text style={styles.orderClientPhone}>{order.shippingAddress.phone || ''}</Text>
+                          <Text style={styles.orderClientAddress} numberOfLines={2}>
+                            {order.shippingAddress.address}, {order.shippingAddress.city}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Articles commandés */}
+                    <View style={styles.orderItemsSection}>
+                      <Text style={styles.orderItemsTitle}>📦 Articles ({startupItems.length})</Text>
+                      {startupItems.map((item, idx) => (
+                        <View key={idx} style={styles.orderItemRow}>
+                          <Text style={styles.orderItemName} numberOfLines={1}>
+                            {item.name}
+                          </Text>
+                          <Text style={styles.orderItemQuantity}>x{item.quantity}</Text>
+                          <Text style={styles.orderItemPrice}>
+                            {(item.price * item.quantity).toLocaleString('fr-FR')} FCFA
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    {/* Total */}
+                    <View style={styles.orderTotalSection}>
+                      <Text style={styles.orderTotalLabel}>Total</Text>
+                      <Text style={styles.orderTotalValue}>
+                        {orderTotal.toLocaleString('fr-FR')} FCFA
+                      </Text>
+                    </View>
+
+                    {/* Actions rapides */}
+                    <View style={styles.orderQuickActions}>
+                      {order.status === 'pending' && (
+                        <TouchableOpacity
+                          style={[styles.quickActionBtn, styles.quickActionProcessing]}
+                          onPress={() => updateOrderStatus(order.id, 'processing')}
+                        >
+                          <Text style={styles.quickActionText}>🔧 Préparer</Text>
+                        </TouchableOpacity>
+                      )}
+                      {order.status === 'processing' && (
+                        <TouchableOpacity
+                          style={[styles.quickActionBtn, styles.quickActionShip]}
+                          onPress={() => updateOrderStatus(order.id, 'shipped')}
+                        >
+                          <Text style={styles.quickActionText}>🚚 Expédier</Text>
+                        </TouchableOpacity>
+                      )}
+                      {order.status === 'shipped' && (
+                        <TouchableOpacity
+                          style={[styles.quickActionBtn, styles.quickActionDeliver]}
+                          onPress={() => updateOrderStatus(order.id, 'delivered')}
+                        >
+                          <Text style={styles.quickActionText}>✅ Livrer</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                 );
               })
@@ -1193,9 +1392,199 @@ const styles = StyleSheet.create({
     color: '#007AFF', 
     marginBottom: 4 
   },
-  orderDate: { 
-    fontSize: 12, 
-    color: '#8E8E93' 
+  orderDate: {
+    fontSize: 12,
+    color: '#8E8E93'
+  },
+
+  // Nouveaux styles pour gestion améliorée des commandes
+  orderStatsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  orderStatCard: {
+    flex: 1,
+    minWidth: 100,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  orderStatGradient: {
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 70,
+  },
+  orderStatNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#666',
+    marginBottom: 4,
+  },
+  orderStatLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+    textAlign: 'center',
+  },
+  orderStatTextActive: {
+    color: 'white',
+  },
+  orderCardEnhanced: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  orderHeaderEnhanced: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  orderHeaderLeft: {
+    flex: 1,
+  },
+  orderIdEnhanced: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  orderDateEnhanced: {
+    fontSize: 13,
+    color: '#999',
+  },
+  statusBadgeEnhanced: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  statusTextEnhanced: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+  },
+  orderClientInfo: {
+    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  orderClientIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  orderClientDetails: {
+    flex: 1,
+  },
+  orderClientName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  orderClientPhone: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
+  },
+  orderClientAddress: {
+    fontSize: 12,
+    color: '#999',
+  },
+  orderItemsSection: {
+    marginBottom: 12,
+  },
+  orderItemsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  orderItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f5',
+  },
+  orderItemName: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+  },
+  orderItemQuantity: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+    marginHorizontal: 12,
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  orderItemPrice: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  orderTotalSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderTopWidth: 2,
+    borderTopColor: '#e0e0e0',
+    marginBottom: 12,
+  },
+  orderTotalLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  orderTotalValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  orderQuickActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickActionBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionProcessing: {
+    backgroundColor: '#4facfe',
+  },
+  quickActionShip: {
+    backgroundColor: '#11998e',
+  },
+  quickActionDeliver: {
+    backgroundColor: '#38ef7d',
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
   },
 
   promoActions: {
