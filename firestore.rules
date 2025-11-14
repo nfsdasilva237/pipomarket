@@ -237,13 +237,99 @@ service cloud.firestore {
     match /ambassadorPayments/{paymentId} {
       // Ambassador peut voir ses paiements, admin peut tout voir
       allow read: if isAuthenticated() && (
-        resource.data.ambassadorId == request.auth.uid || 
+        resource.data.ambassadorId == request.auth.uid ||
         isAdmin()
       );
       // Seul l'admin peut créer/modifier les paiements
       allow write: if isAdmin();
     }
-    
+
+    // =====================================
+    // CATEGORIES
+    // =====================================
+    match /categories/{categoryId} {
+      // Tout le monde peut lire les catégories
+      allow read: if true;
+      // Seuls les admins peuvent créer/modifier/supprimer
+      allow create, update, delete: if isAdmin();
+    }
+
+    // =====================================
+    // STARTUP INVITE CODES
+    // =====================================
+    match /startupInviteCodes/{codeId} {
+      // Public pour validation lors de l'inscription
+      allow read: if true;
+      // Seuls les admins peuvent gérer les codes
+      allow create, update, delete: if isAdmin();
+    }
+
+    // =====================================
+    // SUBSCRIPTIONS
+    // =====================================
+    match /subscriptions/{subscriptionId} {
+      // Lecture : propriétaire de la startup ou admin
+      allow read: if isAuthenticated() && (
+        resource.data.startupId == request.auth.uid || isAdmin()
+      );
+      // Création : startup authentifiée
+      allow create: if isAuthenticated() &&
+        request.resource.data.startupId == request.auth.uid;
+      // Mise à jour : propriétaire ou admin
+      allow update: if isAuthenticated() && (
+        resource.data.startupId == request.auth.uid || isAdmin()
+      );
+      // Suppression : admin uniquement
+      allow delete: if isAdmin();
+    }
+
+    match /subscriptionPayments/{paymentId} {
+      // Lecture : propriétaire de la startup ou admin
+      allow read: if isAuthenticated() && (
+        resource.data.startupId == request.auth.uid || isAdmin()
+      );
+      // Création : authentifié
+      allow create: if isAuthenticated();
+      // Mise à jour : propriétaire ou admin
+      allow update: if isAuthenticated() && (
+        resource.data.startupId == request.auth.uid || isAdmin()
+      );
+      // Suppression : admin uniquement
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // DEVICE TOKENS (pour notifications push)
+    // =====================================
+    match /deviceTokens/{tokenId} {
+      allow read: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+      allow create, update: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+    }
+
+    // =====================================
+    // LOYALTY SYSTEM
+    // =====================================
+    match /pointsHistory/{historyId} {
+      allow read: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    match /userRewards/{rewardId} {
+      allow read: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
     // RÈGLE PAR DÉFAUT
     match /{document=**} {
       allow read, write: if false;
