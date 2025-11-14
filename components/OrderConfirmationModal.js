@@ -1,6 +1,8 @@
 // components/OrderConfirmationModal.js - MODAL DE CONFIRMATION COMMANDE
 import { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Clipboard,
   Modal,
   ScrollView,
@@ -9,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import paymentService from '../utils/paymentService';
 
 export default function OrderConfirmationModal({
   visible,
@@ -17,15 +20,86 @@ export default function OrderConfirmationModal({
   total,
   paymentMethod,
   mobileMoneyProvider,
-  startupPayments, // Array: [{name, total, mtnPhone, orangePhone}]
+  startupPayments, // Array: [{id, name, total, mtnPhone, orangePhone}]
   onViewOrders,
+  userId,
 }) {
   const [copiedCode, setCopiedCode] = useState(null);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
 
   const handleCopyCode = (code, index) => {
     Clipboard.setString(code);
     setCopiedCode(index);
     setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  const handleConfirmPayment = async () => {
+    Alert.alert(
+      'Confirmation de paiement',
+      'Avez-vous effectué le paiement Mobile Money ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Oui, j\'ai payé',
+          onPress: async () => {
+            setConfirmingPayment(true);
+            try {
+              // Créer les paiements pour chaque startup
+              const paymentPromises = startupPayments.map(async (startup) => {
+                const phoneNumber =
+                  mobileMoneyProvider === 'mtn'
+                    ? startup.mtnPhone
+                    : startup.orangePhone;
+
+                if (!phoneNumber) {
+                  console.warn(`Pas de numéro ${mobileMoneyProvider} pour ${startup.name}`);
+                  return null;
+                }
+
+                // Créer le paiement
+                const result = await paymentService.createPayment({
+                  orderId: orderId,
+                  startupId: startup.id,
+                  userId: userId,
+                  total: startup.total,
+                  startupPhone: phoneNumber,
+                  startupName: startup.name,
+                  operator: mobileMoneyProvider,
+                });
+
+                if (result.success) {
+                  // Confirmer que le client a payé
+                  await paymentService.clientConfirmPayment(
+                    result.paymentId,
+                    orderId
+                  );
+                }
+
+                return result;
+              });
+
+              await Promise.all(paymentPromises);
+
+              setPaymentConfirmed(true);
+              Alert.alert(
+                'Paiement enregistré',
+                'Votre paiement a été enregistré. La startup va vérifier et confirmer la réception.',
+                [{ text: 'OK' }]
+              );
+            } catch (error) {
+              console.error('Erreur confirmation paiement:', error);
+              Alert.alert(
+                'Erreur',
+                'Impossible d\'enregistrer le paiement. Veuillez réessayer.'
+              );
+            } finally {
+              setConfirmingPayment(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleClose = () => {
@@ -185,7 +259,47 @@ export default function OrderConfirmationModal({
                       <Text style={styles.stepText}>
                         4. Confirmez le paiement avec votre code PIN
                       </Text>
+                      <Text style={styles.stepText}>
+                        5. Revenez ici et cliquez "J'ai payé"
+                      </Text>
                     </View>
+
+                    {/* BOUTON J'AI PAYÉ */}
+                    {!paymentConfirmed && (
+                      <TouchableOpacity
+                        style={[
+                          styles.confirmPaymentButton,
+                          confirmingPayment && styles.confirmPaymentButtonDisabled,
+                        ]}
+                        onPress={handleConfirmPayment}
+                        disabled={confirmingPayment}
+                      >
+                        {confirmingPayment ? (
+                          <ActivityIndicator color="white" />
+                        ) : (
+                          <>
+                            <Text style={styles.confirmPaymentButtonIcon}>✓</Text>
+                            <Text style={styles.confirmPaymentButtonText}>
+                              J'ai payé
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+
+                    {paymentConfirmed && (
+                      <View style={styles.paymentConfirmedBanner}>
+                        <Text style={styles.paymentConfirmedIcon}>✅</Text>
+                        <View style={styles.paymentConfirmedContent}>
+                          <Text style={styles.paymentConfirmedTitle}>
+                            Paiement enregistré
+                          </Text>
+                          <Text style={styles.paymentConfirmedText}>
+                            La startup va vérifier et confirmer la réception
+                          </Text>
+                        </View>
+                      </View>
+                    )}
                   </>
                 ) : (
                   <Text style={styles.noStartupsText}>
@@ -205,12 +319,26 @@ export default function OrderConfirmationModal({
                 </Text>
               </View>
               {paymentMethod === 'mobile_money' && (
-                <View style={styles.nextStepItem}>
-                  <Text style={styles.nextStepIcon}>💳</Text>
-                  <Text style={styles.nextStepText}>
-                    Effectuez le paiement Mobile Money
-                  </Text>
-                </View>
+                <>
+                  <View style={styles.nextStepItem}>
+                    <Text style={styles.nextStepIcon}>
+                      {paymentConfirmed ? '✅' : '💳'}
+                    </Text>
+                    <Text style={styles.nextStepText}>
+                      {paymentConfirmed
+                        ? 'Paiement Mobile Money effectué'
+                        : 'Effectuez le paiement Mobile Money'}
+                    </Text>
+                  </View>
+                  {paymentConfirmed && (
+                    <View style={styles.nextStepItem}>
+                      <Text style={styles.nextStepIcon}>⏳</Text>
+                      <Text style={styles.nextStepText}>
+                        En attente de confirmation par la startup
+                      </Text>
+                    </View>
+                  )}
+                </>
               )}
               <View style={styles.nextStepItem}>
                 <Text style={styles.nextStepIcon}>📦</Text>
@@ -584,5 +712,59 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     fontSize: 16,
     fontWeight: '600',
+  },
+
+  // Bouton J'ai payé
+  confirmPaymentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#34C759',
+    borderRadius: 12,
+    padding: 18,
+    marginTop: 16,
+    gap: 8,
+  },
+  confirmPaymentButtonDisabled: {
+    opacity: 0.6,
+  },
+  confirmPaymentButtonIcon: {
+    fontSize: 24,
+    color: 'white',
+  },
+  confirmPaymentButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+
+  // Banner confirmation paiement
+  paymentConfirmedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#34C759',
+    gap: 12,
+  },
+  paymentConfirmedIcon: {
+    fontSize: 32,
+  },
+  paymentConfirmedContent: {
+    flex: 1,
+  },
+  paymentConfirmedTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1B5E20',
+    marginBottom: 4,
+  },
+  paymentConfirmedText: {
+    fontSize: 13,
+    color: '#2E7D32',
+    lineHeight: 18,
   },
 });

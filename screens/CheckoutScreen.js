@@ -493,6 +493,7 @@ export default function CheckoutScreen({ navigation, route, cart: globalCart, cl
           paymentMethod={orderConfirmationData.paymentMethod}
           mobileMoneyProvider={orderConfirmationData.mobileMoneyProvider}
           startupPayments={orderConfirmationData.startupPayments}
+          userId={auth.currentUser?.uid}
           onViewOrders={() => {
             navigation.navigate('Orders');
           }}
