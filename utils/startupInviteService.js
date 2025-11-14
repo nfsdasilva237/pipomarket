@@ -58,6 +58,8 @@ const startupInviteService = {
     try {
       if (!code || code.trim() === '') return false;
 
+      console.log('Vérification code startup:', code.trim().toUpperCase());
+
       const q = query(
         collection(db, 'startupInviteCodes'),
         where('code', '==', code.trim().toUpperCase())
@@ -65,22 +67,40 @@ const startupInviteService = {
 
       const snapshot = await getDocs(q);
 
-      if (snapshot.empty) return false;
+      if (snapshot.empty) {
+        console.log('Code startup non trouvé');
+        return false;
+      }
 
       const codeDoc = snapshot.docs[0];
       const codeData = codeDoc.data();
 
+      console.log('Code startup trouvé:', codeData);
+
       // Vérifier si actif
-      if (!codeData.active) return false;
+      if (!codeData.active) {
+        console.log('Code startup inactif');
+        return false;
+      }
 
       // Vérifier expiration
       const now = new Date();
-      const expiresAt = codeData.expiresAt.toDate();
-      if (now > expiresAt) return false;
+      const expiresAt = codeData.expiresAt?.toDate ? codeData.expiresAt.toDate() : new Date(codeData.expiresAt);
+
+      console.log('Expiration:', expiresAt, 'Maintenant:', now);
+
+      if (now > expiresAt) {
+        console.log('Code startup expiré');
+        return false;
+      }
 
       // Vérifier utilisation max
-      if (codeData.usedCount >= codeData.maxUses) return false;
+      if (codeData.usedCount >= codeData.maxUses) {
+        console.log('Code startup épuisé');
+        return false;
+      }
 
+      console.log('Code startup valide!');
       return true;
     } catch (error) {
       console.error('Erreur vérification code startup:', error);

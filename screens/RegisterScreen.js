@@ -1,4 +1,4 @@
-// screens/RegisterScreen.js - VERSION FINALE AVEC FEEDBACK VISUEL
+// screens/RegisterScreen.js - VERSION MODERNE
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
@@ -19,6 +19,7 @@ import { auth, db } from '../config/firebase';
 import adminService from '../utils/adminService';
 import ambassadorService from '../utils/ambassadorService';
 import startupInviteService from '../utils/startupInviteService';
+
 export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,7 +32,7 @@ export default function RegisterScreen({ navigation }) {
 
   // État
   const [promoCode, setPromoCode] = useState('');
-  
+
   // AMBASSADOR SECRET
   const [showAmbassadorInput, setShowAmbassadorInput] = useState(false);
   const [ambassadorCode, setAmbassadorCode] = useState('');
@@ -171,14 +172,14 @@ export default function RegisterScreen({ navigation }) {
       }
 
       // Message succès selon le rôle
-      const successMessage = 
-        finalRole === 'admin' 
+      const successMessage =
+        finalRole === 'admin'
           ? '🎉 Compte Administrateur créé avec succès !\n\nVous avez maintenant le contrôle total sur PipoMarket.'
           : accountType === 'startup'
           ? '🏢 Compte Startup créé avec succès !\n\nVous pouvez maintenant vendre vos produits.'
           : accountType === 'ambassador'
-          ? '� Compte Ambassadeur créé avec succès !\n\nVous pouvez maintenant gérer vos recommandations.'
-          : '�👋 Bienvenue sur PipoMarket !\n\nCommencez à découvrir les produits.';
+          ? '👥 Compte Ambassadeur créé avec succès !\n\nVous pouvez maintenant gérer vos recommandations.'
+          : '👋 Bienvenue sur PipoMarket !\n\nCommencez à découvrir les produits.';
 
       Alert.alert(
         'Succès !',
@@ -202,7 +203,7 @@ export default function RegisterScreen({ navigation }) {
       );
     } catch (error) {
       console.error('Erreur inscription:', error);
-      
+
       let errorMessage = 'Une erreur est survenue';
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'Cet email est déjà utilisé';
@@ -211,7 +212,7 @@ export default function RegisterScreen({ navigation }) {
       } else if (error.code === 'auth/weak-password') {
         errorMessage = 'Mot de passe trop faible';
       }
-      
+
       Alert.alert('Erreur', errorMessage);
     } finally {
       setLoading(false);
@@ -228,106 +229,121 @@ export default function RegisterScreen({ navigation }) {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
+          {/* HEADER */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={styles.backButton}>←</Text>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Text style={styles.backButtonText}>←</Text>
             </TouchableOpacity>
+            <Text style={styles.title}>Créer un compte</Text>
+            <Text style={styles.subtitle}>Rejoignez la communauté PipoMarket</Text>
           </View>
-
-          <Text style={styles.title}>Créer un compte</Text>
-          <Text style={styles.subtitle}>Rejoignez PipoMarket</Text>
 
           {/* TYPE DE COMPTE */}
-          <View style={styles.accountTypeContainer}>
-            <TouchableOpacity
-              style={[
-                styles.accountTypeButton,
-                accountType === 'client' && styles.accountTypeButtonActive,
-              ]}
-              onPress={() => setAccountType('client')}
-            >
-              <Text style={styles.accountTypeIcon}>👤</Text>
-              <Text
+          <View style={styles.accountTypeSection}>
+            <Text style={styles.sectionTitle}>Je suis...</Text>
+            <View style={styles.accountTypeContainer}>
+              <TouchableOpacity
                 style={[
-                  styles.accountTypeText,
-                  accountType === 'client' && styles.accountTypeTextActive,
+                  styles.accountTypeButton,
+                  accountType === 'client' && styles.accountTypeButtonActive,
                 ]}
+                onPress={() => setAccountType('client')}
               >
-                Client
-              </Text>
-            </TouchableOpacity>
+                <Text style={styles.accountTypeIcon}>👤</Text>
+                <Text
+                  style={[
+                    styles.accountTypeText,
+                    accountType === 'client' && styles.accountTypeTextActive,
+                  ]}
+                >
+                  Client
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.accountTypeButton,
-                accountType === 'startup' && styles.accountTypeButtonActive,
-              ]}
-              onPress={() => setAccountType('startup')}
-            >
-              <Text style={styles.accountTypeIcon}>🏢</Text>
-              <Text
+              <TouchableOpacity
                 style={[
-                  styles.accountTypeText,
-                  accountType === 'startup' && styles.accountTypeTextActive,
+                  styles.accountTypeButton,
+                  accountType === 'startup' && styles.accountTypeButtonActive,
                 ]}
+                onPress={() => setAccountType('startup')}
               >
-                Startup
-              </Text>
-            </TouchableOpacity>
+                <Text style={styles.accountTypeIcon}>🏢</Text>
+                <Text
+                  style={[
+                    styles.accountTypeText,
+                    accountType === 'startup' && styles.accountTypeTextActive,
+                  ]}
+                >
+                  Startup
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.accountTypeButton,
-                accountType === 'ambassador' && styles.accountTypeButtonActive,
-              ]}
-              onPress={() => setAccountType('ambassador')}
-            >
-              <Text style={styles.accountTypeIcon}>👥</Text>
-              <Text
+              <TouchableOpacity
                 style={[
-                  styles.accountTypeText,
-                  accountType === 'ambassador' && styles.accountTypeTextActive,
+                  styles.accountTypeButton,
+                  accountType === 'ambassador' && styles.accountTypeButtonActive,
                 ]}
+                onPress={() => setAccountType('ambassador')}
               >
-                Ambassadeur
-              </Text>
-            </TouchableOpacity>
+                <Text style={styles.accountTypeIcon}>👥</Text>
+                <Text
+                  style={[
+                    styles.accountTypeText,
+                    accountType === 'ambassador' && styles.accountTypeTextActive,
+                  ]}
+                >
+                  Ambassadeur
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* FORMULAIRE */}
-          <View style={styles.form}>
-            <Text style={styles.label}>Nom complet *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Votre nom"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-            />
+          {/* CARTE FORMULAIRE */}
+          <View style={styles.formCard}>
+            <Text style={styles.formTitle}>Informations personnelles</Text>
 
-            <Text style={styles.label}>Email *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="votre@email.com"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>👤 Nom complet *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Votre nom"
+                placeholderTextColor="#999"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+              />
+            </View>
 
-            <Text style={styles.label}>Téléphone</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="+237 6XX XXX XXX"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>📧 Email *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="votre@email.com"
+                placeholderTextColor="#999"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>📞 Téléphone</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="+237 6XX XXX XXX"
+                placeholderTextColor="#999"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+            </View>
 
             {accountType === 'ambassador' && (
-              <>
-                <Text style={styles.label}>Code d'invitation Ambassadeur *</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>🎫 Code d'invitation Ambassadeur *</Text>
                 <TextInput
                   style={[
                     styles.input,
@@ -335,6 +351,7 @@ export default function RegisterScreen({ navigation }) {
                     ambassadorCode && !ambassadorCodeValid && styles.inputInvalid,
                   ]}
                   placeholder="Code d'invitation"
+                  placeholderTextColor="#999"
                   value={ambassadorCode}
                   onChangeText={handleAmbassadorCodeChange}
                   autoCapitalize="none"
@@ -346,77 +363,88 @@ export default function RegisterScreen({ navigation }) {
                       ambassadorCodeValid ? styles.validText : styles.invalidText,
                     ]}
                   >
-                    {ambassadorCodeValid
-                      ? '✓ Code valide'
-                      : '✗ Code invalide'}
+                    {ambassadorCodeValid ? '✓ Code valide' : '✗ Code invalide'}
                   </Text>
                 )}
-              </>
+              </View>
             )}
 
             {accountType === 'startup' && (
               <>
-                <Text style={styles.label}>Code d'invitation Startup *</Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    startupCodeValid && styles.inputValid,
-                    startupInviteCode && !startupCodeValid && styles.inputInvalid,
-                  ]}
-                  placeholder="STARTUP-XXXXX"
-                  value={startupInviteCode}
-                  onChangeText={handleStartupCodeChange}
-                  autoCapitalize="characters"
-                />
-                {startupInviteCode && (
-                  <Text
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>🎫 Code d'invitation Startup *</Text>
+                  <TextInput
                     style={[
-                      styles.validationText,
-                      startupCodeValid ? styles.validText : styles.invalidText,
+                      styles.input,
+                      startupCodeValid && styles.inputValid,
+                      startupInviteCode && !startupCodeValid && styles.inputInvalid,
                     ]}
-                  >
-                    {startupCodeValid
-                      ? '✓ Code valide'
-                      : '✗ Code invalide'}
-                  </Text>
-                )}
+                    placeholder="STARTUP-XXXXX"
+                    placeholderTextColor="#999"
+                    value={startupInviteCode}
+                    onChangeText={handleStartupCodeChange}
+                    autoCapitalize="characters"
+                  />
+                  {startupInviteCode && (
+                    <Text
+                      style={[
+                        styles.validationText,
+                        startupCodeValid ? styles.validText : styles.invalidText,
+                      ]}
+                    >
+                      {startupCodeValid ? '✓ Code valide' : '✗ Code invalide'}
+                    </Text>
+                  )}
+                </View>
 
-                <Text style={styles.label}>Nom de la startup *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ma Startup"
-                  value={startupName}
-                  onChangeText={setStartupName}
-                />
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>🏢 Nom de la startup *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ma Startup"
+                    placeholderTextColor="#999"
+                    value={startupName}
+                    onChangeText={setStartupName}
+                  />
+                </View>
               </>
             )}
 
-            <Text style={styles.label}>Mot de passe *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Minimum 6 caractères"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>🔒 Mot de passe *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Minimum 6 caractères"
+                placeholderTextColor="#999"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
 
-            <Text style={styles.label}>Confirmer mot de passe *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Retapez votre mot de passe"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>🔒 Confirmer mot de passe *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Retapez votre mot de passe"
+                placeholderTextColor="#999"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+              />
+            </View>
 
-            <Text style={styles.label}>Code Ambassadeur (Optionnel)</Text>
-<TextInput
-  style={styles.input}
-  placeholder="AMB-12345"
-  value={promoCode}
-  onChangeText={setPromoCode}
-  autoCapitalize="characters"
-/>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>🎁 Code Ambassadeur (Optionnel)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="AMB-12345"
+                placeholderTextColor="#999"
+                value={promoCode}
+                onChangeText={setPromoCode}
+                autoCapitalize="characters"
+              />
+            </View>
 
             {/* OPTION ADMIN (CACHÉ) */}
             <TouchableOpacity
@@ -429,112 +457,254 @@ export default function RegisterScreen({ navigation }) {
 
             {showAdminInput && (
               <View style={styles.adminSection}>
-                <Text style={styles.label}>🔐 Code Administrateur (Optionnel)</Text>
+                <Text style={styles.inputLabel}>🔐 Code Administrateur (Optionnel)</Text>
                 <View style={styles.adminInputContainer}>
                   <TextInput
                     style={[
                       styles.input,
-                      styles.adminInput,
-                      adminCode && (adminCodeValid ? styles.adminInputValid : styles.adminInputInvalid)
+                      adminCode && (adminCodeValid ? styles.inputValid : styles.inputInvalid),
                     ]}
-                    placeholder="Code secret admin (laisser vide si client/startup)"
+                    placeholder="Code secret admin"
+                    placeholderTextColor="#999"
                     value={adminCode}
                     onChangeText={handleAdminCodeChange}
                     secureTextEntry
                     autoCapitalize="none"
                   />
                   {adminCode && (
-                    <Text style={styles.adminValidationIcon}>
-                      {adminCodeValid ? '✅' : '❌'}
-                    </Text>
+                    <Text style={styles.adminValidationIcon}>{adminCodeValid ? '✅' : '❌'}</Text>
                   )}
                 </View>
                 <Text style={styles.adminHint}>
                   ✨ Laissez vide pour un compte normal{'\n'}
-                  👑 Entrez le code secret pour devenir admin{'\n'}
-                  {adminCodeValid && '🎉 Code valide ! Vous serez admin !'}
+                  👑 Entrez le code secret pour devenir admin
+                  {adminCodeValid && '\n🎉 Code valide ! Vous serez admin !'}
                 </Text>
               </View>
             )}
-          </View>
 
-          {/* BOUTON INSCRIPTION */}
-          <TouchableOpacity
-            style={[styles.registerButton, loading && styles.registerButtonDisabled]}
-            onPress={handleRegister}
-            
-            disabled={loading}
-            
-          >
-            
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.registerButtonText}>
-                {adminCodeValid ? '👑 Créer Admin' : 'S\'inscrire'}
-              </Text>
-              
-            )}
-            
-          </TouchableOpacity>
-
-          {/* LIEN CONNEXION */}
-          <View style={styles.loginLink}>
-            <Text style={styles.loginLinkText}>Déjà un compte ? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.loginLinkButton}>Se connecter</Text>
+            {/* BOUTON INSCRIPTION */}
+            <TouchableOpacity
+              style={[styles.registerButton, loading && styles.registerButtonDisabled]}
+              onPress={handleRegister}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <>
+                  <Text style={styles.registerButtonText}>
+                    {adminCodeValid ? '👑 Créer Admin' : 'S\'inscrire'}
+                  </Text>
+                  <Text style={styles.registerButtonIcon}>→</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
+
+          {/* LIEN CONNEXION */}
+          <TouchableOpacity
+            style={styles.loginLink}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.loginLinkText}>
+              Déjà un compte ? <Text style={styles.loginLinkButton}>Se connecter</Text>
+            </Text>
+          </TouchableOpacity>
 
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-  
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F2F7' },
+  container: { flex: 1, backgroundColor: '#007AFF' },
   keyboardView: { flex: 1 },
   scrollView: { flex: 1 },
-  scrollContent: { padding: 20 },
-  header: { marginBottom: 20 },
-  backButton: { fontSize: 32, color: '#007AFF' },
-  title: { fontSize: 32, fontWeight: 'bold', color: '#000', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#8E8E93', marginBottom: 32 },
-  
-  accountTypeContainer: { flexDirection: 'row', gap: 12, marginBottom: 32 },
-  accountTypeButton: { flex: 1, backgroundColor: 'white', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 2, borderColor: '#E5E5EA' },
-  accountTypeButtonActive: { borderColor: '#007AFF', backgroundColor: '#F0F8FF' },
-  accountTypeIcon: { fontSize: 32, marginBottom: 8 },
-  accountTypeText: { fontSize: 15, fontWeight: '600', color: '#8E8E93' },
+  scrollContent: { paddingBottom: 40 },
+
+  header: {
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  backButton: {
+    marginBottom: 16,
+  },
+  backButtonText: {
+    fontSize: 32,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.8)',
+  },
+
+  // Type de compte
+  accountTypeSection: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    marginBottom: 12,
+  },
+  accountTypeContainer: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  accountTypeButton: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  accountTypeButtonActive: {
+    backgroundColor: 'white',
+    borderColor: 'white',
+  },
+  accountTypeIcon: { fontSize: 28, marginBottom: 6 },
+  accountTypeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.9)',
+  },
   accountTypeTextActive: { color: '#007AFF' },
-  
-  form: { marginBottom: 24 },
-  label: { fontSize: 13, fontWeight: '600', color: '#000', marginBottom: 8, marginTop: 8 },
-  input: { backgroundColor: 'white', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, marginBottom: 16, borderWidth: 1, borderColor: '#E5E5EA' },
-  inputValid: { borderColor: '#34C759', backgroundColor: '#F0FFF4' },
-  inputInvalid: { borderColor: '#FF3B30', backgroundColor: '#FFF0F0' },
-  validationText: { fontSize: 12, marginTop: -12, marginBottom: 12, fontWeight: '600' },
+
+  // Formulaire
+  formCard: {
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  formTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 20,
+  },
+  inputGroup: { marginBottom: 16 },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  inputValid: {
+    borderColor: '#34C759',
+    backgroundColor: '#F0FFF4',
+  },
+  inputInvalid: {
+    borderColor: '#FF3B30',
+    backgroundColor: '#FFF0F0',
+  },
+  validationText: {
+    fontSize: 12,
+    marginTop: 6,
+    fontWeight: '600',
+  },
   validText: { color: '#34C759' },
   invalidText: { color: '#FF3B30' },
-  
-  adminTrigger: { alignItems: 'center', padding: 8, marginVertical: 8 },
+
+  adminTrigger: {
+    alignItems: 'center',
+    padding: 12,
+    marginVertical: 8,
+  },
   adminTriggerText: { fontSize: 24, opacity: 0.3 },
-  adminSection: { marginTop: 16, backgroundColor: '#FFF3CD', borderRadius: 12, padding: 16, borderWidth: 2, borderColor: '#FFD700' },
+  adminSection: {
+    marginTop: 8,
+    backgroundColor: '#FFF3CD',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#FFD700',
+  },
   adminInputContainer: { position: 'relative' },
-  adminInput: { backgroundColor: '#FFFAEB', borderColor: '#FFD700', marginBottom: 8 },
-  adminInputValid: { borderColor: '#34C759', backgroundColor: '#F0FFF4' },
-  adminInputInvalid: { borderColor: '#FF3B30', backgroundColor: '#FFF0F0' },
-  adminValidationIcon: { position: 'absolute', right: 16, top: 14, fontSize: 20 },
-  adminHint: { fontSize: 12, color: '#8E8E93', marginTop: 4, fontStyle: 'italic', lineHeight: 18 },
-  
-  registerButton: { backgroundColor: '#007AFF', borderRadius: 12, padding: 16, alignItems: 'center', shadowColor: '#007AFF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  registerButtonDisabled: { backgroundColor: '#C7C7CC' },
-  registerButtonText: { color: 'white', fontSize: 17, fontWeight: 'bold' },
-  
-  loginLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
-  loginLinkText: { fontSize: 15, color: '#8E8E93' },
-  loginLinkButton: { fontSize: 15, color: '#007AFF', fontWeight: '600' },
+  adminValidationIcon: {
+    position: 'absolute',
+    right: 16,
+    top: 14,
+    fontSize: 20,
+  },
+  adminHint: {
+    fontSize: 12,
+    color: '#8E8E93',
+    marginTop: 8,
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+
+  registerButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 16,
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  registerButtonDisabled: {
+    backgroundColor: '#C7C7CC',
+    shadowOpacity: 0,
+  },
+  registerButtonText: {
+    color: 'white',
+    fontSize: 17,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  registerButtonIcon: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+
+  loginLink: {
+    alignItems: 'center',
+    marginTop: 24,
+    marginHorizontal: 20,
+  },
+  loginLinkText: {
+    fontSize: 15,
+    color: 'white',
+  },
+  loginLinkButton: {
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
 });
