@@ -1,4 +1,5 @@
-// screens/AdminDashboardScreen.js - DASHBOARD ADMIN ULTRA-COMPLET
+// screens/AdminDashboardScreen.js - DASHBOARD ADMIN ULTRA-COMPLET - DESIGN PREMIUM
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -273,19 +274,24 @@ export default function AdminDashboardScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* HEADER */}
-      <View style={styles.header}>
+      {/* HEADER PREMIUM */}
+      <LinearGradient
+        colors={['#FFD700', '#FFA500', '#FF8C00']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <View style={styles.headerLeft}>
           <Text style={styles.headerIcon}>👑</Text>
           <View>
             <Text style={styles.headerTitle}>Admin PipoMarket</Text>
-            <Text style={styles.headerSubtitle}>Panel Administrateur</Text>
+            <Text style={styles.headerSubtitle}>Panel Administrateur Premium</Text>
           </View>
         </View>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Text style={styles.logoutIcon}>🚪</Text>
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
@@ -379,49 +385,79 @@ export default function AdminDashboardScreen({ navigation }) {
           </TouchableOpacity>
         </ScrollView>
 
-        {/* VUE D'ENSEMBLE */}
+        {/* VUE D'ENSEMBLE PREMIUM */}
         {activeTab === 'overview' && stats && (
           <View style={styles.section}>
-            {/* KPIs */}
+            {/* KPIs PREMIUM */}
             <Text style={styles.sectionTitle}>📊 Statistiques Globales</Text>
             <View style={styles.kpisGrid}>
-              <View style={[styles.kpiCard, { backgroundColor: '#34C759' }]}>
+              <LinearGradient
+                colors={['#11998e', '#38ef7d']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>💰</Text>
                 <Text style={styles.kpiValue}>
                   {(stats.totalRevenue / 1000).toFixed(0)}K
                 </Text>
                 <Text style={styles.kpiLabel}>Revenus (FCFA)</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={[styles.kpiCard, { backgroundColor: '#007AFF' }]}>
+              <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>🏢</Text>
                 <Text style={styles.kpiValue}>{stats.totalStartups}</Text>
                 <Text style={styles.kpiLabel}>Startups</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={[styles.kpiCard, { backgroundColor: '#FF9500' }]}>
+              <LinearGradient
+                colors={['#f093fb', '#f5576c']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>📦</Text>
                 <Text style={styles.kpiValue}>{stats.totalProducts}</Text>
                 <Text style={styles.kpiLabel}>Produits</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={[styles.kpiCard, { backgroundColor: '#AF52DE' }]}>
+              <LinearGradient
+                colors={['#fa709a', '#fee140']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>🛒</Text>
                 <Text style={styles.kpiValue}>{stats.totalOrders}</Text>
                 <Text style={styles.kpiLabel}>Commandes</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={[styles.kpiCard, { backgroundColor: '#FF3B30' }]}>
+              <LinearGradient
+                colors={['#ff0844', '#ffb199']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>👥</Text>
                 <Text style={styles.kpiValue}>{stats.totalUsers}</Text>
                 <Text style={styles.kpiLabel}>Utilisateurs</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={[styles.kpiCard, { backgroundColor: '#5856D6' }]}>
+              <LinearGradient
+                colors={['#4facfe', '#00f2fe']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>🎁</Text>
                 <Text style={styles.kpiValue}>{stats.totalPromos}</Text>
                 <Text style={styles.kpiLabel}>Codes Promo</Text>
-              </View>
+              </LinearGradient>
             </View>
 
             {/* Répartition Users */}
@@ -443,90 +479,132 @@ export default function AdminDashboardScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Actions Rapides */}
-            // REMPLACE la section "Actions Rapides" (ligne ~460-490) par CECI:
-
-{/* Actions Rapides */}
+            {/* Actions Rapides Premium */}
 <View style={styles.subsection}>
   <Text style={styles.subsectionTitle}>⚡ Actions Rapides</Text>
   <View style={styles.actionsGrid}>
     <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#007AFF' }]}
       onPress={() => {
         setActiveTab('startups');
         loadTabData('startups');
       }}
     >
-      <Text style={styles.actionIcon}>🏢</Text>
-      <Text style={styles.actionText}>Gérer Startups</Text>
+      <LinearGradient
+        colors={['#667eea', '#764ba2']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.actionCard}
+      >
+        <Text style={styles.actionIcon}>🏢</Text>
+        <Text style={styles.actionText}>Gérer Startups</Text>
+      </LinearGradient>
     </TouchableOpacity>
 
     <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#FF9500' }]}
       onPress={() => {
         setActiveTab('products');
         loadTabData('products');
       }}
     >
-      <Text style={styles.actionIcon}>📦</Text>
-      <Text style={styles.actionText}>Gérer Produits</Text>
+      <LinearGradient
+        colors={['#f093fb', '#f5576c']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.actionCard}
+      >
+        <Text style={styles.actionIcon}>📦</Text>
+        <Text style={styles.actionText}>Gérer Produits</Text>
+      </LinearGradient>
     </TouchableOpacity>
 
     <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#34C759' }]}
       onPress={() => {
         setActiveTab('orders');
         loadTabData('orders');
       }}
     >
-      <Text style={styles.actionIcon}>🛒</Text>
-      <Text style={styles.actionText}>Gérer Commandes</Text>
+      <LinearGradient
+        colors={['#11998e', '#38ef7d']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.actionCard}
+      >
+        <Text style={styles.actionIcon}>🛒</Text>
+        <Text style={styles.actionText}>Gérer Commandes</Text>
+      </LinearGradient>
     </TouchableOpacity>
 
     <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#AF52DE' }]}
       onPress={() => {
         setActiveTab('users');
         loadTabData('users');
       }}
     >
-      <Text style={styles.actionIcon}>👥</Text>
-      <Text style={styles.actionText}>Gérer Users</Text>
+      <LinearGradient
+        colors={['#fa709a', '#fee140']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.actionCard}
+      >
+        <Text style={styles.actionIcon}>👥</Text>
+        <Text style={styles.actionText}>Gérer Users</Text>
+      </LinearGradient>
     </TouchableOpacity>
 
-    {/* ✅ NOUVEAU: Bouton Catégories */}
     <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#5856D6' }]}
       onPress={() => navigation.navigate('AdminManageCategories')}
     >
-      <Text style={styles.actionIcon}>📂</Text>
-      <Text style={styles.actionText}>Gérer Catégories</Text>
+      <LinearGradient
+        colors={['#4facfe', '#00f2fe']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.actionCard}
+      >
+        <Text style={styles.actionIcon}>📂</Text>
+        <Text style={styles.actionText}>Gérer Catégories</Text>
+      </LinearGradient>
     </TouchableOpacity>
 
     <TouchableOpacity
-  style={[styles.actionCard, { backgroundColor: '#FFD700' }]}
-  onPress={() => navigation.navigate('AdminManageAmbassadorCodesScreen')}
->
-  <Text style={styles.actionIcon}>🎁</Text>
-  <Text style={styles.actionText}>Gérer Ambassadeurs</Text>
-</TouchableOpacity>
+      onPress={() => navigation.navigate('AdminManageAmbassadorCodesScreen')}
+    >
+      <LinearGradient
+        colors={['#FFD700', '#FFA500']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.actionCard}
+      >
+        <Text style={styles.actionIcon}>👥</Text>
+        <Text style={styles.actionText}>Gérer Ambassadeurs</Text>
+      </LinearGradient>
+    </TouchableOpacity>
 
-    {/* ✅ NOUVEAU: Bouton Codes Startup */}
     <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#00C7BE' }]}
       onPress={() => navigation.navigate('AdminManageStartupCodes')}
     >
-      <Text style={styles.actionIcon}>🎫</Text>
-      <Text style={styles.actionText}>Codes Startup</Text>
+      <LinearGradient
+        colors={['#00C7BE', '#17EAD9']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.actionCard}
+      >
+        <Text style={styles.actionIcon}>🎫</Text>
+        <Text style={styles.actionText}>Codes Startup</Text>
+      </LinearGradient>
     </TouchableOpacity>
 
-    {/* ✅ NOUVEAU: Bouton Codes Promo */}
     <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#FF2D55' }]}
       onPress={() => navigation.navigate('AdminManagePromoCodes')}
     >
-      <Text style={styles.actionIcon}>🎁</Text>
-      <Text style={styles.actionText}>Gérer Promos</Text>
+      <LinearGradient
+        colors={['#ff0844', '#ffb199']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.actionCard}
+      >
+        <Text style={styles.actionIcon}>🎁</Text>
+        <Text style={styles.actionText}>Gérer Promos</Text>
+      </LinearGradient>
     </TouchableOpacity>
   </View>
 </View>
@@ -921,31 +999,85 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F2F2F7' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 16, fontSize: 15, color: '#8E8E93' },
-  
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFD700', padding: 20 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center' },
-  headerIcon: { fontSize: 32, marginRight: 12 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#000' },
-  headerSubtitle: { fontSize: 12, color: '#000', opacity: 0.7 },
-  logoutButton: { width: 40, height: 40, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  logoutIcon: { fontSize: 20 },
+
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  headerIcon: { fontSize: 40, marginRight: 12, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#000', textShadowColor: 'rgba(255,255,255,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  headerSubtitle: { fontSize: 12, color: '#000', opacity: 0.8, fontWeight: '600', marginTop: 2 },
+  logoutButton: {
+    width: 48,
+    height: 48,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  logoutIcon: { fontSize: 24 },
   
   content: { flex: 1 },
-  tabsContainer: { backgroundColor: 'white', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#E5E5EA' },
-  tab: { paddingHorizontal: 16, paddingVertical: 8, marginRight: 8, borderRadius: 8 },
-  activeTab: { backgroundColor: '#007AFF' },
+  tabsContainer: {
+    backgroundColor: 'white',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tab: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    marginRight: 10,
+    borderRadius: 12,
+    backgroundColor: '#F2F2F7',
+  },
+  activeTab: {
+    backgroundColor: '#FFD700',
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
+  },
   tabText: { fontSize: 13, fontWeight: '600', color: '#8E8E93' },
-  activeTabText: { color: 'white' },
-  
+  activeTabText: { color: '#000', fontWeight: 'bold' },
+
   section: { padding: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#000' },
-  
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#000', marginBottom: 16 },
+
   kpisGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
-  kpiCard: { width: (width - 44) / 2, borderRadius: 16, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
-  kpiIcon: { fontSize: 32, marginBottom: 8 },
-  kpiValue: { fontSize: 28, fontWeight: 'bold', color: 'white', marginBottom: 4 },
-  kpiLabel: { fontSize: 12, color: 'white', textAlign: 'center', opacity: 0.9 },
+  kpiCard: {
+    width: (width - 44) / 2,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  kpiIcon: { fontSize: 40, marginBottom: 12 },
+  kpiValue: { fontSize: 32, fontWeight: 'bold', color: 'white', marginBottom: 6, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  kpiLabel: { fontSize: 12, color: 'rgba(255,255,255,0.95)', textAlign: 'center', fontWeight: '600' },
   
   subsection: { marginBottom: 24 },
   subsectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#000', marginBottom: 12 },
@@ -955,9 +1087,19 @@ const styles = StyleSheet.create({
   userStatLabel: { fontSize: 12, color: '#8E8E93' },
   
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  actionCard: { width: (width - 44) / 2, borderRadius: 12, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 3 },
-  actionIcon: { fontSize: 32, color: 'white', marginBottom: 8 },
-  actionText: { fontSize: 14, fontWeight: '600', color: 'white', textAlign: 'center' },
+  actionCard: {
+    width: (width - 44) / 2,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  actionIcon: { fontSize: 36, color: 'white', marginBottom: 10, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  actionText: { fontSize: 14, fontWeight: 'bold', color: 'white', textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   
   itemCard: { backgroundColor: 'white', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
   itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },

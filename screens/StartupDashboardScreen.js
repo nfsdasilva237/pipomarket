@@ -1,4 +1,4 @@
-// screens/StartupDashboardScreen.js - ✅ PHASE 1: AVEC BARRES PROGRESSION ABONNEMENT
+// screens/StartupDashboardScreen.js - ✅ PHASE 1: AVEC BARRES PROGRESSION ABONNEMENT - DESIGN PREMIUM
 import {
   collection,
   deleteDoc,
@@ -11,6 +11,7 @@ import {
   updateDoc,
   where
 } from 'firebase/firestore';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -335,21 +336,26 @@ export default function StartupDashboardScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+      {/* HEADER PREMIUM */}
+      <LinearGradient
+        colors={['#667eea', '#764ba2']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
           <Text style={styles.backBtn}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle} numberOfLines={1}>
-            {startup.name}
+            🏢 {startup.name}
           </Text>
-          <Text style={styles.headerSubtitle}>Dashboard</Text>
+          <Text style={styles.headerSubtitle}>Dashboard Premium</Text>
         </View>
-        <TouchableOpacity onPress={() => loadDashboard()}>
+        <TouchableOpacity onPress={() => loadDashboard()} style={styles.headerButton}>
           <Text style={styles.refreshBtn}>🔄</Text>
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       <ScrollView 
         style={styles.content} 
@@ -475,35 +481,55 @@ export default function StartupDashboardScreen({ route, navigation }) {
               </View>
             )}
 
-            {/* KPIs PRINCIPAUX */}
+            {/* KPIs PRINCIPAUX PREMIUM */}
             <View style={styles.kpisContainer}>
-              <View style={styles.kpiCard}>
+              <LinearGradient
+                colors={['#11998e', '#38ef7d']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>💰</Text>
                 <Text style={styles.kpiValue}>
                   {totalRevenue.toLocaleString('fr-FR')}
                 </Text>
                 <Text style={styles.kpiLabel}>Revenus totaux (FCFA)</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={styles.kpiCard}>
+              <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>🛒</Text>
                 <Text style={styles.kpiValue}>{orders.length}</Text>
                 <Text style={styles.kpiLabel}>Commandes</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={styles.kpiCard}>
+              <LinearGradient
+                colors={['#f093fb', '#f5576c']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>📦</Text>
                 <Text style={styles.kpiValue}>{products.length}</Text>
                 <Text style={styles.kpiLabel}>Produits</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={styles.kpiCard}>
+              <LinearGradient
+                colors={['#4facfe', '#00f2fe']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>📊</Text>
                 <Text style={styles.kpiValue}>
                   {avgOrder.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
                 </Text>
                 <Text style={styles.kpiLabel}>Panier moyen (FCFA)</Text>
-              </View>
+              </LinearGradient>
             </View>
 
             {/* REVENUS RÉCENTS */}
@@ -569,48 +595,68 @@ export default function StartupDashboardScreen({ route, navigation }) {
               </View>
             )}
 
-            {/* ACTIONS RAPIDES */}
+            {/* ACTIONS RAPIDES PREMIUM */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>⚡ Actions rapides</Text>
               <View style={styles.actionsGrid}>
-                <TouchableOpacity
-                  style={[styles.actionCard, { backgroundColor: '#007AFF' }]}
-                  onPress={() => navigation.navigate('AddProduct', { startupId })}
-                >
-                  <Text style={styles.actionIcon}>+</Text>
-                  <Text style={styles.actionText}>Ajouter Produit</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('AddProduct', { startupId })}>
+                  <LinearGradient
+                    colors={['#667eea', '#764ba2']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>+</Text>
+                    <Text style={styles.actionText}>Ajouter Produit</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.actionCard, { backgroundColor: '#34C759' }]}
-                  onPress={() => navigation.navigate('CreatePromoCode')}
-                >
-                  <Text style={styles.actionIcon}>🎁</Text>
-                  <Text style={styles.actionText}>Code Promo</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('CreatePromoCode')}>
+                  <LinearGradient
+                    colors={['#11998e', '#38ef7d']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>🎁</Text>
+                    <Text style={styles.actionText}>Code Promo</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.actionCard, { backgroundColor: '#FF9500' }]}
-                  onPress={() => navigation.navigate('StartupMessages')}
-                >
-                  <Text style={styles.actionIcon}>💬</Text>
-                  <Text style={styles.actionText}>Messages</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('StartupMessages')}>
+                  <LinearGradient
+                    colors={['#f093fb', '#f5576c']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>💬</Text>
+                    <Text style={styles.actionText}>Messages</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.actionCard, { backgroundColor: '#00C7BE' }]}
-                  onPress={() => navigation.navigate('StartupPaymentSettings', { startupId })}
-                >
-                  <Text style={styles.actionIcon}>💳</Text>
-                  <Text style={styles.actionText}>Paiements</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('StartupPaymentSettings', { startupId })}>
+                  <LinearGradient
+                    colors={['#4facfe', '#00f2fe']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>💳</Text>
+                    <Text style={styles.actionText}>Paiements</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.actionCard, { backgroundColor: '#AF52DE' }]}
-                  onPress={() => navigation.navigate('ManageSubscription')}
-                >
-                  <Text style={styles.actionIcon}>💎</Text>
-                  <Text style={styles.actionText}>Mon Abonnement</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('ManageSubscription')}>
+                  <LinearGradient
+                    colors={['#fa709a', '#fee140']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>💎</Text>
+                    <Text style={styles.actionText}>Mon Abonnement</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
@@ -860,11 +906,30 @@ const getStatusLabel = (status) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F2F2F7' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#E5E5EA' },
-  backBtn: { fontSize: 28, color: '#007AFF' },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#000' },
-  headerSubtitle: { fontSize: 12, color: '#8E8E93', marginTop: 2 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backBtn: { fontSize: 28, color: 'white' },
+  headerCenter: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: 'white', textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  headerSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 4 },
   refreshBtn: { fontSize: 24 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 16, fontSize: 15, color: '#8E8E93' },
@@ -875,11 +940,33 @@ const styles = StyleSheet.create({
   buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
   
   content: { flex: 1 },
-  tabsContainer: { backgroundColor: 'white', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#E5E5EA' },
-  tab: { paddingHorizontal: 16, paddingVertical: 8, marginRight: 8, borderRadius: 8 },
-  activeTab: { backgroundColor: '#007AFF' },
+  tabsContainer: {
+    backgroundColor: 'white',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tab: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginRight: 10,
+    borderRadius: 12,
+    backgroundColor: '#F2F2F7',
+  },
+  activeTab: {
+    backgroundColor: '#667eea',
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
   tabText: { fontSize: 14, fontWeight: '600', color: '#8E8E93' },
-  activeTabText: { color: 'white' },
+  activeTabText: { color: 'white', fontWeight: 'bold' },
   
   // ✅ PHASE 1: Styles utilisation abonnement
   usageHeader: {
@@ -901,14 +988,16 @@ const styles = StyleSheet.create({
   },
   usageCard: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(102, 126, 234, 0.1)',
   },
   usageCardHeader: {
     flexDirection: 'row',
@@ -967,10 +1056,20 @@ const styles = StyleSheet.create({
   },
   
   kpisContainer: { flexDirection: 'row', flexWrap: 'wrap', padding: 12, gap: 12 },
-  kpiCard: { width: (width - 36) / 2, backgroundColor: 'white', borderRadius: 16, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  kpiIcon: { fontSize: 32, marginBottom: 8 },
-  kpiValue: { fontSize: 24, fontWeight: 'bold', color: '#007AFF', marginBottom: 4 },
-  kpiLabel: { fontSize: 12, color: '#8E8E93', textAlign: 'center' },
+  kpiCard: {
+    width: (width - 36) / 2,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  kpiIcon: { fontSize: 40, marginBottom: 12 },
+  kpiValue: { fontSize: 28, fontWeight: 'bold', color: 'white', marginBottom: 6, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  kpiLabel: { fontSize: 12, color: 'rgba(255,255,255,0.95)', textAlign: 'center', fontWeight: '600' },
   
   section: { padding: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
@@ -999,9 +1098,19 @@ const styles = StyleSheet.create({
   alertButtonText: { color: 'white', fontSize: 12, fontWeight: '600' },
   
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  actionCard: { width: (width - 44) / 2, borderRadius: 12, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
-  actionIcon: { fontSize: 32, color: 'white', marginBottom: 8 },
-  actionText: { fontSize: 14, fontWeight: '600', color: 'white', textAlign: 'center' },
+  actionCard: {
+    width: (width - 44) / 2,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  actionIcon: { fontSize: 36, color: 'white', marginBottom: 10, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  actionText: { fontSize: 14, fontWeight: 'bold', color: 'white', textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   
   productCard: { flexDirection: 'row', backgroundColor: 'white', borderRadius: 12, padding: 12, marginBottom: 12, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
   productImageContainer: { width: 60, height: 60, backgroundColor: '#F2F2F7', borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginRight: 12, overflow: 'hidden' },
