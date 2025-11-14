@@ -58,16 +58,21 @@ export default function StartupDashboardScreen({ route, navigation }) {
 
   const loadDashboard = async () => {
     try {
+      console.log('🔐 User authentifié ?', auth.currentUser ? 'OUI' : 'NON');
+      console.log('🔐 User ID:', auth.currentUser?.uid);
+
       let finalStartupId = paramStartupId;
-      
+
       if (!finalStartupId) {
+        console.log('📝 Recherche startup de l\'utilisateur...');
         const q = query(
           collection(db, 'startups'),
           where('ownerId', '==', auth.currentUser.uid)
         );
-        
+
         const querySnapshot = await getDocs(q);
-        
+        console.log('✅ Startup trouvée:', !querySnapshot.empty);
+
         if (querySnapshot.empty) {
           Alert.alert(
             'Aucune startup',
@@ -77,15 +82,16 @@ export default function StartupDashboardScreen({ route, navigation }) {
           setLoading(false);
           return;
         }
-        
+
         const startupDoc = querySnapshot.docs[0];
         finalStartupId = startupDoc.id;
         setStartupId(finalStartupId);
       }
-      
+
       // Charger startup
+      console.log('📝 Chargement startup...');
       const startupDoc = await getDoc(doc(db, 'startups', finalStartupId));
-      
+
       if (!startupDoc.exists()) {
         Alert.alert('Erreur', 'Startup introuvable');
         setLoading(false);
@@ -93,8 +99,10 @@ export default function StartupDashboardScreen({ route, navigation }) {
       }
 
       setStartup({ id: startupDoc.id, ...startupDoc.data() });
+      console.log('✅ Startup chargée');
 
       // Charger produits
+      console.log('📝 Chargement produits...');
       const productsQ = query(
         collection(db, 'products'),
         where('startupId', '==', finalStartupId)
@@ -105,8 +113,10 @@ export default function StartupDashboardScreen({ route, navigation }) {
         ...doc.data()
       }));
       setProducts(productsData);
+      console.log('✅ Produits chargés:', productsData.length);
 
       // Charger commandes
+      console.log('📝 Chargement commandes...');
       const ordersQ = query(
         collection(db, 'orders'),
         orderBy('createdAt', 'desc'),
@@ -117,13 +127,15 @@ export default function StartupDashboardScreen({ route, navigation }) {
         id: doc.id,
         ...doc.data()
       }));
-      
-      const startupOrders = allOrders.filter(order => 
+
+      const startupOrders = allOrders.filter(order =>
         order.items && order.items.some(item => item.startupId === finalStartupId)
       );
       setOrders(startupOrders);
+      console.log('✅ Commandes chargées:', startupOrders.length);
 
       // Charger codes promo
+      console.log('📝 Chargement codes promo...');
       const promoQ = query(
         collection(db, 'promoCodes'),
         where('startupId', '==', finalStartupId)
@@ -134,15 +146,22 @@ export default function StartupDashboardScreen({ route, navigation }) {
         ...doc.data()
       }));
       setPromoCodes(promosData);
+      console.log('✅ Codes promo chargés:', promosData.length);
 
       // ✅ PHASE 1: Charger stats abonnement
+      console.log('📝 Chargement stats abonnement...');
       const statsResult = await subscriptionService.getSubscriptionStats(finalStartupId);
       if (statsResult.success) {
         setSubscriptionStats(statsResult.stats);
+        console.log('✅ Stats abonnement chargées');
+      } else {
+        console.log('⚠️ Erreur stats abonnement:', statsResult.error);
       }
 
     } catch (error) {
-      console.error('Erreur chargement:', error);
+      console.error('❌ Erreur chargement:', error);
+      console.error('❌ Code erreur:', error.code);
+      console.error('❌ Message:', error.message);
       Alert.alert('Erreur', 'Impossible de charger les données');
     } finally {
       setLoading(false);
