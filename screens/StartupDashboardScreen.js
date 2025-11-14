@@ -147,10 +147,15 @@ export default function StartupDashboardScreen({ route, navigation }) {
       }));
       setPromoCodes(promosData);
 
-      // ✅ PHASE 1: Charger stats abonnement
-      const statsResult = await subscriptionService.getSubscriptionStats(finalStartupId);
-      if (statsResult.success) {
-        setSubscriptionStats(statsResult.stats);
+      // ✅ PHASE 1: Charger stats abonnement - avec gestion d'erreur
+      try {
+        const statsResult = await subscriptionService.getSubscriptionStats(finalStartupId);
+        if (statsResult.success) {
+          setSubscriptionStats(statsResult.stats);
+        }
+      } catch (statsError) {
+        console.log('⚠️ Impossible de charger les stats abonnement (problème de permissions Firestore)');
+        setSubscriptionStats(null); // Continuer sans stats
       }
 
     } catch (error) {
