@@ -1,5 +1,5 @@
 // screens/CheckoutScreen.js - AVEC CODES PROMO
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -167,6 +167,7 @@ export default function CheckoutScreen({ navigation, route, cart, clearCart }) {
         const startupGroups = cart.reduce((acc, item) => {
           if (!acc[item.startupId]) {
             acc[item.startupId] = {
+              id: item.startupId,
               name: item.startupName,
               total: 0,
             };
@@ -175,17 +176,43 @@ export default function CheckoutScreen({ navigation, route, cart, clearCart }) {
           return acc;
         }, {});
 
-        const startupPayments = Object.values(startupGroups);
-        const phoneExample = deliveryAddress.phone || '6XXXXXXXX';
+        // Récupérer les numéros de paiement de chaque startup
+        const startupPayments = await Promise.all(
+          Object.values(startupGroups).map(async (sp) => {
+            try {
+              const startupDoc = await getDoc(doc(db, 'startups', sp.id));
+              if (startupDoc.exists()) {
+                const startupData = startupDoc.data();
+                return {
+                  ...sp,
+                  mtnPhone: startupData.mtnPhone || null,
+                  orangePhone: startupData.orangePhone || null,
+                };
+              }
+              return sp;
+            } catch (error) {
+              console.error('Erreur récupération startup:', error);
+              return sp;
+            }
+          })
+        );
 
         if (mobileMoneyProvider === 'mtn') {
-          paymentInstructions = `\n\n📱 PAIEMENT MOBILE MONEY (MTN)\n\nComposez le code suivant pour chaque startup:\n\n${startupPayments.map(sp =>
-            `🏢 ${sp.name}:\n*126*1*1*[NUMÉRO_STARTUP]*${sp.total}#`
-          ).join('\n\n')}\n\nRemplacez [NUMÉRO_STARTUP] par le numéro Mobile Money de la startup.`;
+          const payments = startupPayments.map(sp => {
+            const phoneNumber = sp.mtnPhone || '[NUMÉRO_NON_CONFIGURÉ]';
+            const warning = !sp.mtnPhone ? '\n⚠️ Contactez la startup pour obtenir son numéro MTN' : '';
+            return `🏢 ${sp.name}:\n*126*1*1*${phoneNumber}*${sp.total}#${warning}`;
+          }).join('\n\n');
+
+          paymentInstructions = `\n\n📱 PAIEMENT MOBILE MONEY (MTN)\n\nComposez le code suivant pour chaque startup:\n\n${payments}`;
         } else if (mobileMoneyProvider === 'orange') {
-          paymentInstructions = `\n\n📱 PAIEMENT ORANGE MONEY\n\nComposez le code suivant pour chaque startup:\n\n${startupPayments.map(sp =>
-            `🏢 ${sp.name}:\n#150*1*1*[NUMÉRO_STARTUP]*${sp.total}#`
-          ).join('\n\n')}\n\nRemplacez [NUMÉRO_STARTUP] par le numéro Orange Money de la startup.`;
+          const payments = startupPayments.map(sp => {
+            const phoneNumber = sp.orangePhone || '[NUMÉRO_NON_CONFIGURÉ]';
+            const warning = !sp.orangePhone ? '\n⚠️ Contactez la startup pour obtenir son numéro Orange' : '';
+            return `🏢 ${sp.name}:\n#150*1*1*${phoneNumber}*${sp.total}#${warning}`;
+          }).join('\n\n');
+
+          paymentInstructions = `\n\n📱 PAIEMENT ORANGE MONEY\n\nComposez le code suivant pour chaque startup:\n\n${payments}`;
         }
       } else if (paymentMethod === 'cash_on_delivery') {
         paymentInstructions = '\n\n💵 PAIEMENT À LA LIVRAISON\n\nVous paierez en espèces lors de la réception de votre commande.';

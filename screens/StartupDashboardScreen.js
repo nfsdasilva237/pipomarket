@@ -598,6 +598,14 @@ export default function StartupDashboardScreen({ route, navigation }) {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  style={[styles.actionCard, { backgroundColor: '#00C7BE' }]}
+                  onPress={() => navigation.navigate('StartupPaymentSettings', { startupId })}
+                >
+                  <Text style={styles.actionIcon}>💳</Text>
+                  <Text style={styles.actionText}>Paiements</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
                   style={[styles.actionCard, { backgroundColor: '#AF52DE' }]}
                   onPress={() => navigation.navigate('ManageSubscription')}
                 >

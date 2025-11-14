@@ -45,6 +45,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import StartupDashboardScreen from './screens/StartupDashboardScreen';
 import StartupDetailScreen from './screens/StartupDetailScreen';
 import StartupMessagesScreen from './screens/StartupMessagesScreen';
+import StartupPaymentSettingsScreen from './screens/StartupPaymentSettingsScreen';
 import StartupsScreen from './screens/StartupsScreen';
 import SubscriptionScreen from './screens/SubscriptionScreen';
 import TermsScreen from './screens/TermsScreen';
@@ -631,9 +632,15 @@ const saveCartToStorage = async () => {
           }}
         />
 
-        <Stack.Screen 
-          name="StartupMessages" 
+        <Stack.Screen
+          name="StartupMessages"
           component={StartupMessagesScreen}
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="StartupPaymentSettings"
+          component={StartupPaymentSettingsScreen}
           options={{ headerShown: false }}
         />
 
