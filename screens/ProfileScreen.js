@@ -1,5 +1,6 @@
 // screens/ProfileScreen.js (AVEC ACCÈS FIDÉLITÉ)
-import { doc, getDoc, signOut } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import {
     Alert,

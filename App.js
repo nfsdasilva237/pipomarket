@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import { auth } from './config/firebase';
 import adminService from './utils/adminService';
 import { notificationService } from './utils/notificationService';
@@ -15,6 +15,7 @@ import AdminDashboardScreen from './screens/AdminDashboardScreen';
 import AdminManageAmbassadorCodesScreen from './screens/AdminManageAmbassadorCodesScreen';
 import AdminManageCategoriesScreen from './screens/AdminManageCategoriesScreen';
 import AdminManagePromoCodesScreen from './screens/AdminManagePromoCodesScreen';
+import AdminManageStartupCodesScreen from './screens/AdminManageStartupCodesScreen';
 import AmbassadorDashboardScreen from './screens/AmbassadorDashboardScreen';
 import CartScreen from './screens/CartScreen';
 import ChangePasswordScreen from './screens/ChangePasswordScreen';
@@ -378,7 +379,11 @@ const saveCartToStorage = async () => {
   if (initializing) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingLogo}>🛒</Text>
+        <Image
+          source={require('./assets/logo.png')}
+          style={styles.loadingLogo}
+          resizeMode="contain"
+        />
         <Text style={styles.loadingText}>PipoMarket</Text>
         <Text style={styles.loadingSubtext}>Chargement...</Text>
       </View>
@@ -668,21 +673,28 @@ const saveCartToStorage = async () => {
           options={{ headerShown: false }}
         />
 {/* ADMIN - GESTION AMBASSADEURS */}
-<Stack.Screen 
-  name="AdminManageAmbassadorCodesScreen" 
+<Stack.Screen
+  name="AdminManageAmbassadorCodesScreen"
   component={AdminManageAmbassadorCodesScreen}
   options={{ headerShown: false }}
 />
         {/* ADMIN - GESTION CODES AMBASSADEUR */}
-        <Stack.Screen 
-          name="AdminManageAmbassadorCodes" 
+        <Stack.Screen
+          name="AdminManageAmbassadorCodes"
           component={AdminManageAmbassadorCodesScreen}
           options={{ headerShown: false }}
         />
 
-        <Stack.Screen 
-  name="EditProduct" 
-  component={EditProductScreen} 
+        {/* ADMIN - GESTION CODES STARTUP */}
+        <Stack.Screen
+          name="AdminManageStartupCodes"
+          component={AdminManageStartupCodesScreen}
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+  name="EditProduct"
+  component={EditProductScreen}
   options={{ headerShown: false }}
 />
 
@@ -751,7 +763,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   loadingLogo: {
-    fontSize: 80,
+    width: 120,
+    height: 120,
     marginBottom: 20,
   },
   loadingText: {

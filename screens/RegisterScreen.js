@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, db } from '../config/firebase';
 import adminService from '../utils/adminService';
 import ambassadorService from '../utils/ambassadorService';
+import startupInviteService from '../utils/startupInviteService';
 export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,7 +36,11 @@ export default function RegisterScreen({ navigation }) {
   const [showAmbassadorInput, setShowAmbassadorInput] = useState(false);
   const [ambassadorCode, setAmbassadorCode] = useState('');
   const [ambassadorCodeValid, setAmbassadorCodeValid] = useState(false);
-  
+
+  // STARTUP INVITE CODE
+  const [startupInviteCode, setStartupInviteCode] = useState('');
+  const [startupCodeValid, setStartupCodeValid] = useState(false);
+
   // ADMIN SECRET
   const [showAdminInput, setShowAdminInput] = useState(false);
   const [adminCode, setAdminCode] = useState('');
@@ -58,6 +63,17 @@ export default function RegisterScreen({ navigation }) {
     }
   };
 
+  // Valider code startup en temps réel
+  const handleStartupCodeChange = async (code) => {
+    setStartupInviteCode(code);
+    if (code) {
+      const isValid = await startupInviteService.verifyInviteCode(code);
+      setStartupCodeValid(isValid);
+    } else {
+      setStartupCodeValid(false);
+    }
+  };
+
   const handleRegister = async () => {
     // Validations (code admin OPTIONNEL)
     if (!email || !password || !name) {
@@ -77,6 +93,11 @@ export default function RegisterScreen({ navigation }) {
 
     if (accountType === 'startup' && !startupName) {
       Alert.alert('Erreur', 'Veuillez entrer le nom de votre startup');
+      return;
+    }
+
+    if (accountType === 'startup' && !startupCodeValid) {
+      Alert.alert('Erreur', 'Code d\'invitation startup invalide ou manquant');
       return;
     }
 
@@ -127,9 +148,13 @@ export default function RegisterScreen({ navigation }) {
           verified: false,
           products: 0,
           rating: 5.0,
+          inviteCode: startupInviteCode, // Sauvegarder le code utilisé
         };
 
         await setDoc(doc(db, 'startups', user.uid), startupData);
+
+        // Marquer le code comme utilisé
+        await startupInviteService.useInviteCode(startupInviteCode, user.uid, startupName);
       }
 
       // Link promo code if provided and not admin
@@ -331,6 +356,31 @@ export default function RegisterScreen({ navigation }) {
 
             {accountType === 'startup' && (
               <>
+                <Text style={styles.label}>Code d'invitation Startup *</Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    startupCodeValid && styles.inputValid,
+                    startupInviteCode && !startupCodeValid && styles.inputInvalid,
+                  ]}
+                  placeholder="STARTUP-XXXXX"
+                  value={startupInviteCode}
+                  onChangeText={handleStartupCodeChange}
+                  autoCapitalize="characters"
+                />
+                {startupInviteCode && (
+                  <Text
+                    style={[
+                      styles.validationText,
+                      startupCodeValid ? styles.validText : styles.invalidText,
+                    ]}
+                  >
+                    {startupCodeValid
+                      ? '✓ Code valide'
+                      : '✗ Code invalide'}
+                  </Text>
+                )}
+
                 <Text style={styles.label}>Nom de la startup *</Text>
                 <TextInput
                   style={styles.input}
@@ -464,6 +514,11 @@ const styles = StyleSheet.create({
   form: { marginBottom: 24 },
   label: { fontSize: 13, fontWeight: '600', color: '#000', marginBottom: 8, marginTop: 8 },
   input: { backgroundColor: 'white', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, marginBottom: 16, borderWidth: 1, borderColor: '#E5E5EA' },
+  inputValid: { borderColor: '#34C759', backgroundColor: '#F0FFF4' },
+  inputInvalid: { borderColor: '#FF3B30', backgroundColor: '#FFF0F0' },
+  validationText: { fontSize: 12, marginTop: -12, marginBottom: 12, fontWeight: '600' },
+  validText: { color: '#34C759' },
+  invalidText: { color: '#FF3B30' },
   
   adminTrigger: { alignItems: 'center', padding: 8, marginVertical: 8 },
   adminTriggerText: { fontSize: 24, opacity: 0.3 },
