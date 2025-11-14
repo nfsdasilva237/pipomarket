@@ -15,6 +15,7 @@ import AdminDashboardScreen from './screens/AdminDashboardScreen';
 import AdminManageAmbassadorCodesScreen from './screens/AdminManageAmbassadorCodesScreen';
 import AdminManageCategoriesScreen from './screens/AdminManageCategoriesScreen';
 import AdminManagePromoCodesScreen from './screens/AdminManagePromoCodesScreen';
+import AdminManageStartupCodesScreen from './screens/AdminManageStartupCodesScreen';
 import AmbassadorDashboardScreen from './screens/AmbassadorDashboardScreen';
 import CartScreen from './screens/CartScreen';
 import ChangePasswordScreen from './screens/ChangePasswordScreen';
@@ -672,21 +673,28 @@ const saveCartToStorage = async () => {
           options={{ headerShown: false }}
         />
 {/* ADMIN - GESTION AMBASSADEURS */}
-<Stack.Screen 
-  name="AdminManageAmbassadorCodesScreen" 
+<Stack.Screen
+  name="AdminManageAmbassadorCodesScreen"
   component={AdminManageAmbassadorCodesScreen}
   options={{ headerShown: false }}
 />
         {/* ADMIN - GESTION CODES AMBASSADEUR */}
-        <Stack.Screen 
-          name="AdminManageAmbassadorCodes" 
+        <Stack.Screen
+          name="AdminManageAmbassadorCodes"
           component={AdminManageAmbassadorCodesScreen}
           options={{ headerShown: false }}
         />
 
-        <Stack.Screen 
-  name="EditProduct" 
-  component={EditProductScreen} 
+        {/* ADMIN - GESTION CODES STARTUP */}
+        <Stack.Screen
+          name="AdminManageStartupCodes"
+          component={AdminManageStartupCodesScreen}
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+  name="EditProduct"
+  component={EditProductScreen}
   options={{ headerShown: false }}
 />
 

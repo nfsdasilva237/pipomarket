@@ -511,7 +511,14 @@ export default function AdminDashboardScreen({ navigation }) {
   <Text style={styles.actionText}>Gérer Ambassadeurs</Text>
 </TouchableOpacity>
 
-
+    {/* ✅ NOUVEAU: Bouton Codes Startup */}
+    <TouchableOpacity
+      style={[styles.actionCard, { backgroundColor: '#00C7BE' }]}
+      onPress={() => navigation.navigate('AdminManageStartupCodes')}
+    >
+      <Text style={styles.actionIcon}>🎫</Text>
+      <Text style={styles.actionText}>Codes Startup</Text>
+    </TouchableOpacity>
 
     {/* ✅ NOUVEAU: Bouton Codes Promo */}
     <TouchableOpacity
