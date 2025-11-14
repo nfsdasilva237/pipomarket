@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import OrderConfirmationModal from '../components/OrderConfirmationModal';
 import { auth, db } from '../config/firebase';
 import promoCodeService from '../utils/promoCodeService';
 
@@ -24,6 +25,10 @@ export default function CheckoutScreen({ navigation, route, cart: globalCart, cl
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
   const [mobileMoneyProvider, setMobileMoneyProvider] = useState(null); // 'mtn' ou 'orange'
+
+  // Modal de confirmation
+  const [confirmationModalVisible, setConfirmationModalVisible] = useState(false);
+  const [orderConfirmationData, setOrderConfirmationData] = useState(null);
 
   // CODES PROMO
   const [promoCode, setPromoCode] = useState('');
@@ -163,8 +168,9 @@ export default function CheckoutScreen({ navigation, route, cart: globalCart, cl
       // Vider le panier
       clearCart();
 
-      // Message selon le mode de paiement
-      let paymentInstructions = '';
+      // Préparer les informations de paiement pour le modal
+      let startupPayments = null;
+
       if (paymentMethod === 'mobile_money' && mobileMoneyProvider) {
         // Grouper les items par startup pour les paiements
         const startupGroups = cart.reduce((acc, item) => {
@@ -180,7 +186,7 @@ export default function CheckoutScreen({ navigation, route, cart: globalCart, cl
         }, {});
 
         // Récupérer les numéros de paiement de chaque startup
-        const startupPayments = await Promise.all(
+        startupPayments = await Promise.all(
           Object.values(startupGroups).map(async (sp) => {
             try {
               const startupDoc = await getDoc(doc(db, 'startups', sp.id));
@@ -199,40 +205,19 @@ export default function CheckoutScreen({ navigation, route, cart: globalCart, cl
             }
           })
         );
-
-        if (mobileMoneyProvider === 'mtn') {
-          const payments = startupPayments.map(sp => {
-            const phoneNumber = sp.mtnPhone || '[NUMÉRO_NON_CONFIGURÉ]';
-            const warning = !sp.mtnPhone ? '\n⚠️ Contactez la startup pour obtenir son numéro MTN' : '';
-            return `🏢 ${sp.name}:\n*126*1*1*${phoneNumber}*${sp.total}#${warning}`;
-          }).join('\n\n');
-
-          paymentInstructions = `\n\n📱 PAIEMENT MOBILE MONEY (MTN)\n\nComposez le code suivant pour chaque startup:\n\n${payments}`;
-        } else if (mobileMoneyProvider === 'orange') {
-          const payments = startupPayments.map(sp => {
-            const phoneNumber = sp.orangePhone || '[NUMÉRO_NON_CONFIGURÉ]';
-            const warning = !sp.orangePhone ? '\n⚠️ Contactez la startup pour obtenir son numéro Orange' : '';
-            return `🏢 ${sp.name}:\n#150*1*1*${phoneNumber}*${sp.total}#${warning}`;
-          }).join('\n\n');
-
-          paymentInstructions = `\n\n📱 PAIEMENT ORANGE MONEY\n\nComposez le code suivant pour chaque startup:\n\n${payments}`;
-        }
-      } else if (paymentMethod === 'cash_on_delivery') {
-        paymentInstructions = '\n\n💵 PAIEMENT À LA LIVRAISON\n\nVous paierez en espèces lors de la réception de votre commande.';
       }
 
-      Alert.alert(
-        '✅ Commande confirmée !',
-        `Votre commande #${docRef.id.slice(0, 8)} a été enregistrée.\n\nTotal: ${total.toLocaleString('fr-FR')} FCFA${paymentInstructions}`,
-        [
-          {
-            text: 'Voir mes commandes',
-            onPress: () => navigation.navigate('Orders'),
-          },
-        ]
-      );
+      // Préparer les données pour le modal de confirmation
+      setOrderConfirmationData({
+        orderId: docRef.id.slice(0, 8),
+        total: total,
+        paymentMethod: paymentMethod,
+        mobileMoneyProvider: paymentMethod === 'mobile_money' ? mobileMoneyProvider : null,
+        startupPayments: paymentMethod === 'mobile_money' ? startupPayments : null,
+      });
 
-      navigation.navigate('Home');
+      // Ouvrir le modal de confirmation
+      setConfirmationModalVisible(true);
 
     } catch (error) {
       console.error('Erreur commande:', error);
@@ -493,6 +478,26 @@ export default function CheckoutScreen({ navigation, route, cart: globalCart, cl
           )}
         </TouchableOpacity>
       </View>
+
+      {/* MODAL DE CONFIRMATION */}
+      {orderConfirmationData && (
+        <OrderConfirmationModal
+          visible={confirmationModalVisible}
+          onClose={() => {
+            setConfirmationModalVisible(false);
+            clearCart();
+            navigation.navigate('Home');
+          }}
+          orderId={orderConfirmationData.orderId}
+          total={orderConfirmationData.total}
+          paymentMethod={orderConfirmationData.paymentMethod}
+          mobileMoneyProvider={orderConfirmationData.mobileMoneyProvider}
+          startupPayments={orderConfirmationData.startupPayments}
+          onViewOrders={() => {
+            navigation.navigate('Orders');
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
