@@ -712,6 +712,13 @@ const saveCartToStorage = async () => {
   options={{ headerShown: false }}
 />
 
+        {/* ADRESSES DE LIVRAISON */}
+        <Stack.Screen
+          name="Addresses"
+          component={AddressesScreen}
+          options={{ headerShown: false }}
+        />
+
         {/* ÉCRAN AMBASSADOR */}
         <Stack.Screen 
           name="AmbassadorDashboard" 
