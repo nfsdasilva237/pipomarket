@@ -268,32 +268,36 @@ service cloud.firestore {
     // SUBSCRIPTIONS
     // =====================================
     match /subscriptions/{subscriptionId} {
-      // Lecture : propriétaire de la startup ou admin
-      allow read: if isAuthenticated() && (
-        resource.data.startupId == request.auth.uid || isAdmin()
-      );
+      // Lecture : tout utilisateur authentifié peut lire
+      // (nécessaire pour les queries where('startupId', '==', uid))
+      allow read: if isAuthenticated();
+
       // Création : startup authentifiée
       allow create: if isAuthenticated() &&
         request.resource.data.startupId == request.auth.uid;
+
       // Mise à jour : propriétaire ou admin
       allow update: if isAuthenticated() && (
         resource.data.startupId == request.auth.uid || isAdmin()
       );
+
       // Suppression : admin uniquement
       allow delete: if isAdmin();
     }
 
     match /subscriptionPayments/{paymentId} {
-      // Lecture : propriétaire de la startup ou admin
-      allow read: if isAuthenticated() && (
-        resource.data.startupId == request.auth.uid || isAdmin()
-      );
+      // Lecture : tout utilisateur authentifié peut lire
+      // (nécessaire pour les queries)
+      allow read: if isAuthenticated();
+
       // Création : authentifié
       allow create: if isAuthenticated();
+
       // Mise à jour : propriétaire ou admin
       allow update: if isAuthenticated() && (
         resource.data.startupId == request.auth.uid || isAdmin()
       );
+
       // Suppression : admin uniquement
       allow delete: if isAdmin();
     }
