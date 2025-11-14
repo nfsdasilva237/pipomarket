@@ -699,6 +699,13 @@ const saveCartToStorage = async () => {
           options={{ headerShown: false }}
         />
 
+        {/* STARTUP - PARAMÈTRES PAIEMENT */}
+        <Stack.Screen
+          name="StartupPaymentSettings"
+          component={StartupPaymentSettingsScreen}
+          options={{ headerShown: false }}
+        />
+
         <Stack.Screen
   name="EditProduct"
   component={EditProductScreen}

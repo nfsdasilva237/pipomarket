@@ -11,14 +11,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import PaymentModal from '../components/PaymentModal';
 import { auth, db } from '../config/firebase';
 import { calculatePoints } from '../config/loyaltyConfig';
 
 export default function CartScreen({ navigation, route, cart, updateQuantity, removeFromCart }) {
   const [userPoints, setUserPoints] = useState(0);
-  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-  const [orderData, setOrderData] = useState(null);
   const [groupedCart, setGroupedCart] = useState({});
 
   useEffect(() => {
@@ -94,95 +91,58 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
     ]);
   };
 
-  // ✅ COMMANDER UNE STARTUP SPÉCIFIQUE
+  // ✅ COMMANDER UNE STARTUP SPÉCIFIQUE - Redirige vers CheckoutScreen
   const handleCheckoutStartup = async (startupId, items) => {
     try {
-      // 1. Calculer total pour cette startup
-      const startupTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-      // 2. Créer commande
-      const orderItems = items.map(item => ({
-        productId: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        startupId: item.startupId,
-      }));
-
-      const order = await addDoc(collection(db, 'orders'), {
-        userId: auth.currentUser.uid,
-        items: orderItems,
-        total: startupTotal,
-        status: 'pending',
-        paymentStatus: 'pending',
-        createdAt: new Date(),
-      });
-
-      // 3. Récupérer startup
-      let startupData = null;
-      let finalStartupId = startupId;
-
-      if (!startupId || startupId === 'unknown') {
-        // Chercher via premier produit
-        const firstItem = items[0];
-        const productDoc = await getDoc(doc(db, 'products', firstItem.id));
-        
-        if (productDoc.exists()) {
-          finalStartupId = productDoc.data().startupId;
-        } else {
-          // Prendre première startup active
-          const startupsQuery = query(collection(db, 'startups'), where('approved', '==', true));
-          const startupsSnap = await getDocs(startupsQuery);
-          
-          if (!startupsSnap.empty) {
-            const firstStartup = startupsSnap.docs[0];
-            finalStartupId = firstStartup.id;
-            startupData = firstStartup.data();
-          }
-        }
-      }
-
-      // Charger startup si pas encore chargée
-      if (!startupData && finalStartupId) {
-        const startupDoc = await getDoc(doc(db, 'startups', finalStartupId));
-        if (startupDoc.exists()) {
-          startupData = startupDoc.data();
-        }
-      }
-
-      if (!startupData) {
-        Alert.alert('Erreur', 'Startup introuvable');
+      // Vérifier si l'utilisateur a une adresse
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        Alert.alert('Erreur', 'Vous devez être connecté');
         return;
       }
 
-      // 4. Préparer données paiement
-      const finalPhone = startupData.ownerPhone || startupData.phone || '+237600000000';
+      // Vérifier si l'utilisateur a au moins une adresse
+      const addressesQuery = query(
+        collection(db, 'addresses'),
+        where('userId', '==', userId)
+      );
+      const addressesSnap = await getDocs(addressesQuery);
 
-      setOrderData({
-        orderId: order.id,
-        startupId: finalStartupId,
-        userId: auth.currentUser.uid,
-        total: startupTotal,
-        startupPhone: finalPhone,
-        startupName: startupData.name || 'PipoMarket',
-        operator: 'mtn',
+      if (addressesSnap.empty) {
+        // Pas d'adresse : proposer d'en ajouter une
+        Alert.alert(
+          'Adresse requise',
+          'Vous devez d\'abord ajouter une adresse de livraison.',
+          [
+            { text: 'Annuler', style: 'cancel' },
+            {
+              text: 'Ajouter',
+              onPress: () => navigation.navigate('Addresses'),
+            },
+          ]
+        );
+        return;
+      }
+
+      // Utiliser la première adresse comme adresse par défaut
+      const defaultAddress = {
+        id: addressesSnap.docs[0].id,
+        ...addressesSnap.docs[0].data(),
+      };
+
+      // Filtrer le panier pour ne garder que les items de cette startup
+      const startupCart = cart.filter(item => item.startupId === startupId);
+
+      // Rediriger vers CheckoutScreen avec le panier filtré et l'adresse
+      navigation.navigate('Checkout', {
+        cart: startupCart,
+        deliveryAddress: defaultAddress,
       });
-
-      console.log('✅ Paiement préparé pour:', startupData.name, startupTotal, 'F');
-
-      // 5. Ouvrir modal
-      setPaymentModalVisible(true);
 
     } catch (error) {
       console.error('❌ Erreur checkout:', error);
-      Alert.alert('Erreur', 'Impossible de créer la commande');
+      Alert.alert('Erreur', 'Impossible de procéder au paiement');
     }
-  };
-
-  // ✅ VIDER PANIER D'UNE STARTUP
-  const removeStartupFromCart = (startupId) => {
-    const itemsToRemove = cart.filter(item => item.startupId === startupId);
-    itemsToRemove.forEach(item => removeFromCart(item.id));
   };
 
   const totalCart = cart?.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
@@ -357,35 +317,6 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
           </>
         )}
       </ScrollView>
-
-      {/* MODAL PAIEMENT */}
-      <PaymentModal
-        visible={paymentModalVisible}
-        onClose={() => setPaymentModalVisible(false)}
-        orderData={orderData}
-        onPaymentConfirmed={() => {
-          setPaymentModalVisible(false);
-          // Retirer items de la startup payée
-          if (orderData?.startupId) {
-            removeStartupFromCart(orderData.startupId);
-          }
-          Alert.alert(
-            'Paiement enregistré',
-            'Votre paiement a été enregistré. La startup va confirmer.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  // Si plus d'items, retour home
-                  if (!cart || cart.filter(item => item.startupId !== orderData?.startupId).length === 0) {
-                    navigation.navigate('HomeTab');
-                  }
-                }
-              }
-            ]
-          );
-        }}
-      />
     </SafeAreaView>
   );
 }

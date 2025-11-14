@@ -15,9 +15,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, db } from '../config/firebase';
 import promoCodeService from '../utils/promoCodeService';
 
-export default function CheckoutScreen({ navigation, route, cart, clearCart }) {
-  const { deliveryAddress } = route.params || {};
-  
+export default function CheckoutScreen({ navigation, route, cart: globalCart, clearCart }) {
+  const { deliveryAddress, cart: routeCart } = route.params || {};
+
+  // Utiliser le panier passé en paramètres ou le panier global
+  const cart = routeCart || globalCart;
+
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
   const [mobileMoneyProvider, setMobileMoneyProvider] = useState(null); // 'mtn' ou 'orange'
