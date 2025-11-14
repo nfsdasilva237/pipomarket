@@ -108,26 +108,32 @@ export default function StartupDashboardScreen({ route, navigation }) {
       }));
       setProducts(productsData);
 
-      // Charger commandes - SANS orderBy pour éviter erreur permissions
-      const ordersSnap = await getDocs(collection(db, 'orders'));
-      const allOrders = ordersSnap.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      // Charger commandes - Avec gestion d'erreur pour permissions
+      try {
+        const ordersSnap = await getDocs(collection(db, 'orders'));
+        const allOrders = ordersSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
 
-      // Filtrer les commandes de cette startup et trier en JavaScript
-      const startupOrders = allOrders
-        .filter(order =>
-          order.items && order.items.some(item => item.startupId === finalStartupId)
-        )
-        .sort((a, b) => {
-          const dateA = a.createdAt?.toDate?.() || new Date(0);
-          const dateB = b.createdAt?.toDate?.() || new Date(0);
-          return dateB - dateA; // Plus récent en premier
-        })
-        .slice(0, 50); // Limiter à 50 commandes
+        // Filtrer les commandes de cette startup et trier en JavaScript
+        const startupOrders = allOrders
+          .filter(order =>
+            order.items && order.items.some(item => item.startupId === finalStartupId)
+          )
+          .sort((a, b) => {
+            const dateA = a.createdAt?.toDate?.() || new Date(0);
+            const dateB = b.createdAt?.toDate?.() || new Date(0);
+            return dateB - dateA; // Plus récent en premier
+          })
+          .slice(0, 50); // Limiter à 50 commandes
 
-      setOrders(startupOrders);
+        setOrders(startupOrders);
+      } catch (ordersError) {
+        console.log('⚠️ Impossible de charger les commandes (problème de permissions Firestore)');
+        console.log('💡 Vous devez déployer les nouvelles règles Firestore pour voir les commandes');
+        setOrders([]); // Continuer sans commandes pour que le reste fonctionne
+      }
 
       // Charger codes promo
       const promoQ = query(
