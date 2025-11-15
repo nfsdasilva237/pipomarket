@@ -15,6 +15,7 @@ import RecommendationsSection from '../components/RecommendationsSection';
 import { auth, db } from '../config/firebase';
 import { getUserLevel } from '../config/loyaltyConfig';
 import { appConfig } from '../data/appData';
+import { bdlBranding, bdlServices } from '../data/bdlServicesData';
 import categoryService from '../utils/categoryService';
 
 export default function HomeScreen({ navigation }) {
@@ -261,10 +262,10 @@ export default function HomeScreen({ navigation }) {
 
         {/* ==================== RECHERCHE ==================== */}
         <View style={styles.searchContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.searchBar}
-            onPress={() => navigation.navigate('IntelligentSearch', { 
-              allProducts: randomProducts 
+            onPress={() => navigation.navigate('IntelligentSearch', {
+              allProducts: randomProducts
             })}
           >
             <Text style={styles.searchIcon}>🔍</Text>
@@ -272,6 +273,59 @@ export default function HomeScreen({ navigation }) {
               Rechercher des produits ou startups...
             </Text>
           </TouchableOpacity>
+        </View>
+
+        {/* ==================== SERVICES BDL STUDIO ==================== */}
+        <View style={styles.bdlSection}>
+          <View style={styles.bdlHeader}>
+            <View style={styles.bdlTitleRow}>
+              <Text style={styles.bdlTitle}>✨ Services Créatifs</Text>
+              <View style={styles.bdlBadge}>
+                <Text style={styles.bdlBadgeText}>{bdlBranding.name}</Text>
+              </View>
+            </View>
+            <Text style={styles.bdlSubtitle}>{bdlBranding.tagline}</Text>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.bdlScroll}
+          >
+            {bdlServices.map((service) => (
+              <TouchableOpacity
+                key={service.id}
+                style={[styles.bdlCard, { backgroundColor: bdlBranding.colors.primary }]}
+                onPress={() => navigation.navigate('BDLServiceDetail', {
+                  serviceId: service.id,
+                  serviceName: service.name
+                })}
+                activeOpacity={0.8}
+              >
+                <View style={styles.bdlCardHeader}>
+                  <Text style={styles.bdlCardIcon}>{service.icon}</Text>
+                </View>
+
+                <Text style={styles.bdlCardName}>{service.name}</Text>
+
+                <Text style={styles.bdlCardDescription} numberOfLines={2}>
+                  {service.description}
+                </Text>
+
+                <View style={styles.bdlCardFooter}>
+                  <Text style={styles.bdlCardPrice}>
+                    À partir de {service.startingPrice.toLocaleString()} XAF
+                  </Text>
+                  <View style={[styles.bdlCardButton, { backgroundColor: bdlBranding.colors.accent }]}>
+                    <Text style={styles.bdlCardButtonText}>Voir →</Text>
+                  </View>
+                </View>
+
+                {/* Effet glow */}
+                <View style={styles.bdlCardGlow} />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* ==================== ASSISTANT IA ==================== */}
@@ -728,4 +782,24 @@ const styles = StyleSheet.create({
   quickActionCard: { flex: 1, backgroundColor: 'white', borderRadius: 16, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
   quickActionIcon: { fontSize: 32, marginBottom: 8 },
   quickActionText: { fontSize: 13, fontWeight: '600', color: '#000', textAlign: 'center' },
+
+  // BDL Services Section
+  bdlSection: { backgroundColor: '#F5F9FC', marginTop: 16, paddingVertical: 20, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#E0E0E0' },
+  bdlHeader: { paddingHorizontal: 20, marginBottom: 16 },
+  bdlTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  bdlTitle: { fontSize: 20, fontWeight: 'bold', color: '#275471', marginRight: 8 },
+  bdlBadge: { backgroundColor: '#275471', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, shadowColor: '#275471', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3 },
+  bdlBadgeText: { color: '#f4a04b', fontSize: 11, fontWeight: 'bold', letterSpacing: 0.5 },
+  bdlSubtitle: { fontSize: 13, color: '#666', fontStyle: 'italic' },
+  bdlScroll: { paddingHorizontal: 20, gap: 16 },
+  bdlCard: { width: 260, borderRadius: 20, padding: 20, shadowColor: '#275471', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 8, position: 'relative', overflow: 'hidden' },
+  bdlCardHeader: { marginBottom: 12, alignItems: 'flex-start' },
+  bdlCardIcon: { fontSize: 48 },
+  bdlCardName: { fontSize: 18, fontWeight: 'bold', color: 'white', marginBottom: 8 },
+  bdlCardDescription: { fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 18, marginBottom: 16, minHeight: 36 },
+  bdlCardFooter: { marginTop: 'auto' },
+  bdlCardPrice: { fontSize: 14, fontWeight: '600', color: 'white', marginBottom: 12 },
+  bdlCardButton: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center', shadowColor: '#f4a04b', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.4, shadowRadius: 5, elevation: 4 },
+  bdlCardButtonText: { fontSize: 14, fontWeight: 'bold', color: '#275471' },
+  bdlCardGlow: { position: 'absolute', top: -60, right: -60, width: 120, height: 120, backgroundColor: 'rgba(244, 160, 75, 0.15)', borderRadius: 60 },
 });

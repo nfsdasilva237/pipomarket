@@ -16,6 +16,11 @@ import AdminManageAmbassadorCodesScreen from './screens/AdminManageAmbassadorCod
 import AdminManageCategoriesScreen from './screens/AdminManageCategoriesScreen';
 import AdminManagePromoCodesScreen from './screens/AdminManagePromoCodesScreen';
 import AmbassadorDashboardScreen from './screens/AmbassadorDashboardScreen';
+import BDLAdminDashboardScreen from './screens/BDLAdminDashboardScreen';
+import BDLAdminOrderDetailScreen from './screens/BDLAdminOrderDetailScreen';
+import BDLOrderDetailScreen from './screens/BDLOrderDetailScreen';
+import BDLOrderFormScreen from './screens/BDLOrderFormScreen';
+import BDLServiceDetailScreen from './screens/BDLServiceDetailScreen';
 import CartScreen from './screens/CartScreen';
 import ChangePasswordScreen from './screens/ChangePasswordScreen';
 import ChatScreen from './screens/ChatScreen';
@@ -33,6 +38,7 @@ import LanguageScreen from './screens/LanguageScreen';
 import LoginScreen from './screens/LoginScreen';
 import LoyaltyScreen from './screens/LoyaltyScreen';
 import ManageSubscriptionScreen from './screens/ManageSubscriptionScreen';
+import MyBDLServicesScreen from './screens/MyBDLServicesScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import OrdersScreen from './screens/OrdersScreen';
 import PipBotScreen from './screens/PipBotScreen';
@@ -687,17 +693,60 @@ const saveCartToStorage = async () => {
 />
 
         {/* ÉCRAN AMBASSADOR */}
-        <Stack.Screen 
-          name="AmbassadorDashboard" 
+        <Stack.Screen
+          name="AmbassadorDashboard"
           component={AmbassadorDashboardScreen}
-          options={{ 
+          options={{
             title: '👥 Tableau de bord Ambassadeur',
             headerStyle: {
               backgroundColor: 'white',
             },
             headerTintColor: '#007AFF',
-            headerShown: true 
+            headerShown: true
           }}
+        />
+
+        {/* ==================== BDL SERVICES ==================== */}
+        {/* Détail d'un service BDL avec packages */}
+        <Stack.Screen
+          name="BDLServiceDetail"
+          component={BDLServiceDetailScreen}
+          options={{ headerShown: false }}
+        />
+
+        {/* Formulaire de commande service BDL */}
+        <Stack.Screen
+          name="BDLOrderForm"
+          component={BDLOrderFormScreen}
+          options={{ headerShown: false }}
+        />
+
+        {/* Liste des commandes BDL du client */}
+        <Stack.Screen
+          name="MyBDLServices"
+          component={MyBDLServicesScreen}
+          options={{ headerShown: false }}
+        />
+
+        {/* Détail d'une commande BDL (client) */}
+        <Stack.Screen
+          name="BDLOrderDetail"
+          component={BDLOrderDetailScreen}
+          options={{ headerShown: false }}
+        />
+
+        {/* Dashboard admin BDL */}
+        <Stack.Screen
+          name="BDLAdminDashboard"
+          component={BDLAdminDashboardScreen}
+          options={{ headerShown: false }}
+        />
+
+        {/* Gestion admin d'une commande BDL */}
+        <Stack.Screen
+          name="BDLAdminOrderDetail"
+          component={BDLAdminOrderDetailScreen}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>
