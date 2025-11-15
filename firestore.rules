@@ -224,6 +224,14 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
+    // BDL STUDIO ORDERS - Authentifié uniquement
+    match /bdl_orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
     // RÈGLE PAR DÉFAUT - Bloque tout ce qui n'est pas explicitement autorisé
     match /{document=**} {
       allow read, write: if false;
