@@ -12,6 +12,7 @@ import AddProductScreen from './screens/AddProductScreen';
 import AddressesScreen from './screens/AddressesScreen';
 import AdminAddStartupScreen from './screens/AdminAddStartupScreen';
 import AdminDashboardScreen from './screens/AdminDashboardScreen';
+import AdminBDLOrdersScreen from './screens/AdminBDLOrdersScreen';
 import BDLStudioHomeScreen from './screens/BDLStudioHomeScreen';
 import BDLServiceDetailScreen from './screens/BDLServiceDetailScreen';
 import BDLPackageOrderScreen from './screens/BDLPackageOrderScreen';
@@ -694,6 +695,12 @@ const saveCartToStorage = async () => {
   options={{ headerShown: false }}
 />
 
+        {/* ✅ GESTION COMMANDES BDL STUDIO */}
+        <Stack.Screen
+          name="AdminBDLOrders"
+          component={AdminBDLOrdersScreen}
+          options={{ headerShown: false }}
+        />
 
         {/* ✅ GESTION CODES PROMO */}
 <Stack.Screen 

@@ -606,6 +606,20 @@ export default function AdminDashboardScreen({ navigation }) {
         <Text style={styles.actionText}>Gérer Promos</Text>
       </LinearGradient>
     </TouchableOpacity>
+
+    <TouchableOpacity
+      onPress={() => navigation.navigate('AdminBDLOrders')}
+    >
+      <LinearGradient
+        colors={['#275471', '#f4a04b']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.actionCard}
+      >
+        <Text style={styles.actionIcon}>🎨</Text>
+        <Text style={styles.actionText}>Commandes BDL</Text>
+      </LinearGradient>
+    </TouchableOpacity>
   </View>
 </View>
           </View>
