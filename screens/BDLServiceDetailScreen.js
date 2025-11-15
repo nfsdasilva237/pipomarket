@@ -18,7 +18,7 @@ export default function BDLServiceDetailScreen({ route, navigation }) {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* HERO SECTION */}
         <LinearGradient
-          colors={service.gradient}
+          colors={['#275471', '#f4a04b']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroSection}
@@ -92,7 +92,7 @@ export default function BDLServiceDetailScreen({ route, navigation }) {
                 onPress={() => handlePackageOrder(pkg)}
               >
                 <LinearGradient
-                  colors={pkg.popular ? service.gradient : ['#667eea', '#764ba2']}
+                  colors={pkg.popular ? ['#275471', '#f4a04b'] : ['#3a6a8a', '#275471']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.orderButtonGradient}
@@ -167,7 +167,7 @@ export default function BDLServiceDetailScreen({ route, navigation }) {
             onPress={() => navigation.navigate('Contact')}
           >
             <LinearGradient
-              colors={service.gradient}
+              colors={['#275471', '#f4a04b']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.finalCTAGradient}

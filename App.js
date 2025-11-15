@@ -12,6 +12,8 @@ import AddProductScreen from './screens/AddProductScreen';
 import AddressesScreen from './screens/AddressesScreen';
 import AdminAddStartupScreen from './screens/AdminAddStartupScreen';
 import AdminDashboardScreen from './screens/AdminDashboardScreen';
+import BDLStudioHomeScreen from './screens/BDLStudioHomeScreen';
+import BDLServiceDetailScreen from './screens/BDLServiceDetailScreen';
 import AdminManageAmbassadorCodesScreen from './screens/AdminManageAmbassadorCodesScreen';
 import AdminManageCategoriesScreen from './screens/AdminManageCategoriesScreen';
 import AdminManagePromoCodesScreen from './screens/AdminManagePromoCodesScreen';
@@ -483,10 +485,22 @@ const saveCartToStorage = async () => {
         </Stack.Screen>
 
         {/* FONCTIONNELS */}
-        <Stack.Screen 
-          name="Loyalty" 
-          component={LoyaltyScreen} 
-          options={{ headerShown: false }} 
+        <Stack.Screen
+          name="Loyalty"
+          component={LoyaltyScreen}
+          options={{ headerShown: false }}
+        />
+
+        {/* BDL STUDIO */}
+        <Stack.Screen
+          name="BDLStudioHome"
+          component={BDLStudioHomeScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BDLServiceDetail"
+          component={BDLServiceDetailScreen}
+          options={{ headerShown: false }}
         />
 
         <Stack.Screen
