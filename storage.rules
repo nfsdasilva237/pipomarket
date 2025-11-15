@@ -1,0 +1,27 @@
+rules_version = '2';
+
+// =====================================
+// 🔥 RÈGLES FIREBASE STORAGE - POUR IMAGES CHAT
+// =====================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // TOUT LE MONDE PEUT LIRE ET ÉCRIRE (ultra-permissif pour test)
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+
+    // OU SI VOUS VOULEZ PLUS DE SÉCURITÉ (authentification requise):
+    // match /{allPaths=**} {
+    //   allow read: if true;  // Tout le monde peut lire
+    //   allow write: if request.auth != null;  // Seulement utilisateurs connectés peuvent uploader
+    // }
+
+    // OU ENCORE PLUS SPÉCIFIQUE (seulement pour le chat):
+    // match /chat/{conversationId}/{fileName} {
+    //   allow read: if true;
+    //   allow write: if request.auth != null;
+    // }
+  }
+}
