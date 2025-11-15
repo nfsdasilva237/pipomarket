@@ -195,7 +195,7 @@ export default function ContactScreen({ navigation }) {
           </View>
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
       </ScrollView>
     </SafeAreaView>
   );

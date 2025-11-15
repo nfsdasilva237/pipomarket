@@ -256,7 +256,7 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
           </View>
         )}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
       </ScrollView>
 
       {/* BOUTON AJOUTER AU PANIER */}

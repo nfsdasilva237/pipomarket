@@ -387,7 +387,7 @@ export default function EditProductScreen({ navigation, route }) {
             <Text style={styles.deleteButtonText}>Supprimer le produit</Text>
           </TouchableOpacity>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

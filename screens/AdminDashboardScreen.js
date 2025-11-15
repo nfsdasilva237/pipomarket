@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from '../config/firebase';
 import adminService from '../utils/adminService';
 import ambassadorService from '../utils/ambassadorService';
@@ -61,6 +61,7 @@ const getRoleLabel = (role) => {
 };
 
 export default function AdminDashboardScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState(null);
@@ -1095,7 +1096,8 @@ export default function AdminDashboardScreen({ navigation }) {
           </View>
         )}
 
-        <View style={{ height: 40 }} />
+        {/* Padding en bas qui s'adapte à tous les téléphones */}
+        <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
       </ScrollView>
     </SafeAreaView>
   );

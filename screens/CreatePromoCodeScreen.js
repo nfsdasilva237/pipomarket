@@ -282,7 +282,7 @@ export default function CreatePromoCodeScreen({ navigation }) {
           </View>
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
       </ScrollView>
 
       {/* FOOTER */}
