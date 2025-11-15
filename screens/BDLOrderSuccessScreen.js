@@ -7,7 +7,7 @@ export default function BDLOrderSuccessScreen({ route, navigation }) {
   const { orderId, order } = route.params;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* SUCCESS ANIMATION */}
         <View style={styles.successSection}>

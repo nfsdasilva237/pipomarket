@@ -149,7 +149,7 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
   const pointsToEarn = calculatePoints(totalCart, userPoints);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* HEADER */}
         <View style={styles.header}>

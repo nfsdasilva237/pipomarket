@@ -311,7 +311,7 @@ export default function AdminDashboardScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* HEADER MODERNE ET ÉLÉGANT */}
       <LinearGradient
         colors={['#6C63FF', '#5A52E0', '#4845C2']}

@@ -87,7 +87,7 @@ export default function CreatePromoCodeScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView style={styles.scrollView}>
         {/* HEADER */}
         <View style={styles.header}>

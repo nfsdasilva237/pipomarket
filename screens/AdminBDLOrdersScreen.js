@@ -159,7 +159,7 @@ export default function AdminBDLOrdersScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* HEADER */}
       <LinearGradient
         colors={['#275471', '#f4a04b']}

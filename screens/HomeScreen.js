@@ -228,7 +228,7 @@ export default function HomeScreen({ navigation }) {
   }, [navigation]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
 
         {/* ==================== HERO BANNER ==================== */}

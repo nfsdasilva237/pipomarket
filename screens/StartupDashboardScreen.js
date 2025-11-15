@@ -372,7 +372,7 @@ export default function StartupDashboardScreen({ route, navigation }) {
   const avgOrder = getAverageOrderValue();
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* HEADER PREMIUM */}
       <LinearGradient
         colors={['#667eea', '#764ba2']}

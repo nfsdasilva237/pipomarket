@@ -156,7 +156,7 @@ export default function LoyaltyScreen({ navigation }) {
   const levelProgress = getLevelProgress(userPoints);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* HEADER */}
         <View style={styles.header}>

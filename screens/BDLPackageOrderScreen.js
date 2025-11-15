@@ -84,7 +84,7 @@ export default function BDLPackageOrderScreen({ route, navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* HERO */}
         <LinearGradient
