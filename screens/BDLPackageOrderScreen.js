@@ -2,8 +2,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
-  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +12,8 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { auth } from '../config/firebase';
+import bdlOrderService from '../utils/bdlOrderService';
 
 export default function BDLPackageOrderScreen({ route, navigation }) {
   const { service, package: pkg } = route.params;
@@ -20,38 +22,65 @@ export default function BDLPackageOrderScreen({ route, navigation }) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [details, setDetails] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
+  const [paymentPhone, setPaymentPhone] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleWhatsAppOrder = () => {
+  const handleSubmitOrder = async () => {
+    // Validation
     if (!name || !phone) {
       Alert.alert('Champs requis', 'Veuillez remplir au moins votre nom et téléphone.');
       return;
     }
 
-    const whatsappNumber = '237XXXXXXXXX'; // À REMPLACER par le numéro BDL Studio
-    const message = `🎨 *NOUVELLE COMMANDE BDL STUDIO*\n\n` +
-      `📦 *Service:* ${service.name}\n` +
-      `💎 *Package:* ${pkg.name}\n` +
-      `💰 *Prix:* ${pkg.price.toLocaleString('fr-FR')} XAF\n\n` +
-      `👤 *Client:*\n` +
-      `Nom: ${name}\n` +
-      `Email: ${email || 'Non fourni'}\n` +
-      `Téléphone: ${phone}\n\n` +
-      `📝 *Détails:*\n${details || 'Aucun détail supplémentaire'}`;
+    if (paymentMethod === 'mobile_money' && !paymentPhone) {
+      Alert.alert('Téléphone requis', 'Veuillez entrer le numéro Mobile Money pour le paiement.');
+      return;
+    }
 
-    const url = `whatsapp://send?phone=${whatsappNumber}&text=${encodeURIComponent(message)}`;
+    if (!auth.currentUser) {
+      Alert.alert('Connexion requise', 'Vous devez être connecté pour passer commande.');
+      navigation.navigate('Login');
+      return;
+    }
 
-    Linking.canOpenURL(url)
-      .then((supported) => {
-        if (supported) {
-          return Linking.openURL(url);
-        } else {
-          Alert.alert('Erreur', 'WhatsApp n\'est pas installé sur votre appareil.');
-        }
-      })
-      .catch((err) => {
-        console.error('Erreur WhatsApp:', err);
-        Alert.alert('Erreur', 'Impossible d\'ouvrir WhatsApp.');
-      });
+    setLoading(true);
+
+    try {
+      const orderData = {
+        customerName: name,
+        customerEmail: email,
+        customerPhone: phone,
+        serviceId: service.id,
+        serviceName: service.name,
+        serviceIcon: service.icon,
+        packageId: pkg.id,
+        packageName: pkg.name,
+        packagePrice: pkg.price,
+        packageFeatures: pkg.features,
+        projectDetails: details,
+        paymentMethod: paymentMethod,
+        paymentPhone: paymentMethod === 'mobile_money' ? paymentPhone : '',
+      };
+
+      const result = await bdlOrderService.createOrder(orderData);
+
+      if (result.success) {
+        // Naviguer vers l'écran de confirmation
+        navigation.replace('BDLOrderSuccess', {
+          orderId: result.orderId,
+          order: result.order
+        });
+      }
+    } catch (error) {
+      console.error('Erreur commande:', error);
+      Alert.alert(
+        'Erreur',
+        'Une erreur est survenue lors de la création de votre commande. Veuillez réessayer.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -111,7 +140,7 @@ export default function BDLPackageOrderScreen({ route, navigation }) {
 
         {/* FORMULAIRE */}
         <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Vos informations</Text>
+          <Text style={styles.sectionTitle}>👤 Vos informations</Text>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Nom complet *</Text>
@@ -163,25 +192,95 @@ export default function BDLPackageOrderScreen({ route, navigation }) {
             />
           </View>
 
+          {/* MÉTHODE DE PAIEMENT */}
+          <View style={styles.paymentSection}>
+            <Text style={styles.sectionTitle}>💳 Méthode de paiement</Text>
+
+            <TouchableOpacity
+              style={[
+                styles.paymentMethod,
+                paymentMethod === 'mobile_money' && styles.paymentMethodActive
+              ]}
+              onPress={() => setPaymentMethod('mobile_money')}
+            >
+              <View style={styles.paymentMethodLeft}>
+                <View style={[
+                  styles.radio,
+                  paymentMethod === 'mobile_money' && styles.radioActive
+                ]}>
+                  {paymentMethod === 'mobile_money' && <View style={styles.radioDot} />}
+                </View>
+                <Text style={styles.paymentMethodText}>📱 Mobile Money</Text>
+              </View>
+              <Text style={styles.paymentMethodSubtext}>Orange Money, MTN MoMo</Text>
+            </TouchableOpacity>
+
+            {paymentMethod === 'mobile_money' && (
+              <View style={styles.mobileMoneyInput}>
+                <Text style={styles.label}>Numéro Mobile Money *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="6XXXXXXXX"
+                  value={paymentPhone}
+                  onChangeText={setPaymentPhone}
+                  keyboardType="phone-pad"
+                  placeholderTextColor="#999"
+                />
+                <Text style={styles.helperText}>
+                  💡 Vous recevrez une notification de paiement sur ce numéro
+                </Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.paymentMethod,
+                paymentMethod === 'cash' && styles.paymentMethodActive
+              ]}
+              onPress={() => setPaymentMethod('cash')}
+            >
+              <View style={styles.paymentMethodLeft}>
+                <View style={[
+                  styles.radio,
+                  paymentMethod === 'cash' && styles.radioActive
+                ]}>
+                  {paymentMethod === 'cash' && <View style={styles.radioDot} />}
+                </View>
+                <Text style={styles.paymentMethodText}>💵 Paiement à la livraison</Text>
+              </View>
+              <Text style={styles.paymentMethodSubtext}>Espèces lors du projet</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* BOUTON COMMANDER */}
           <TouchableOpacity
-            style={styles.orderButton}
-            onPress={handleWhatsAppOrder}
+            style={[styles.orderButton, loading && styles.orderButtonDisabled]}
+            onPress={handleSubmitOrder}
             activeOpacity={0.8}
+            disabled={loading}
           >
             <LinearGradient
-              colors={['#25D366', '#128C7E']}
+              colors={loading ? ['#ccc', '#999'] : ['#275471', '#f4a04b']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.orderGradient}
             >
-              <Text style={styles.orderIcon}>💬</Text>
-              <Text style={styles.orderText}>Confirmer via WhatsApp</Text>
+              {loading ? (
+                <>
+                  <ActivityIndicator color="white" />
+                  <Text style={styles.orderText}>Traitement...</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.orderIcon}>🛒</Text>
+                  <Text style={styles.orderText}>Confirmer la commande</Text>
+                </>
+              )}
             </LinearGradient>
           </TouchableOpacity>
 
           <Text style={styles.infoText}>
-            💡 Vous serez redirigé vers WhatsApp pour finaliser votre commande avec notre équipe
+            🔒 Paiement sécurisé • Vos données sont protégées
           </Text>
         </View>
 
@@ -355,16 +454,81 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
 
+  // PAYMENT
+  paymentSection: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  paymentMethod: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+  },
+  paymentMethodActive: {
+    borderColor: '#275471',
+    backgroundColor: '#F0F7FF',
+  },
+  paymentMethodLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#ccc',
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioActive: {
+    borderColor: '#275471',
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#275471',
+  },
+  paymentMethodText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+  },
+  paymentMethodSubtext: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 32,
+  },
+  mobileMoneyInput: {
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 6,
+  },
+
   // BUTTON
   orderButton: {
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 16,
-    shadowColor: '#25D366',
+    shadowColor: '#275471',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
+  },
+  orderButtonDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
   },
   orderGradient: {
     flexDirection: 'row',
