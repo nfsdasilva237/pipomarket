@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import RecommendationsSection from '../components/RecommendationsSection';
+import BDLStudioSection from '../components/BDLStudioSection';
 import { auth, db } from '../config/firebase';
 import { getUserLevel } from '../config/loyaltyConfig';
 import { appConfig } from '../data/appData';
@@ -348,6 +349,9 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
           </Animated.View>
         )}
+
+        {/* ==================== BDL STUDIO SERVICES ==================== */}
+        <BDLStudioSection navigation={navigation} />
 
         {/* ==================== TOP 3 PREMIUM ==================== */}
         {premiumStartups.length > 0 && (
