@@ -19,6 +19,47 @@ import ambassadorService from '../utils/ambassadorService';
 
 const { width } = Dimensions.get('window');
 
+// HELPERS - Doivent être AVANT le composant car utilisés dedans
+const getOrderStatusColor = (status) => {
+  const colors = {
+    pending: '#FFA94D',
+    processing: '#6C63FF',
+    shipped: '#C471ED',
+    delivered: '#10d98c',
+    cancelled: '#FF6B9D',
+  };
+  return colors[status] || '#A0A0A0';
+};
+
+const getOrderStatusLabel = (status) => {
+  const labels = {
+    pending: 'En attente',
+    processing: 'En traitement',
+    shipped: 'Expédiée',
+    delivered: 'Livrée',
+    cancelled: 'Annulée',
+  };
+  return labels[status] || status;
+};
+
+const getRoleColor = (role) => {
+  const colors = {
+    admin: '#FFA94D',
+    startup: '#6C63FF',
+    client: '#10d98c',
+  };
+  return colors[role] || '#A0A0A0';
+};
+
+const getRoleLabel = (role) => {
+  const labels = {
+    admin: '👑 Admin',
+    startup: '🏢 Startup',
+    client: '👤 Client',
+  };
+  return labels[role] || role;
+};
+
 export default function AdminDashboardScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -1059,47 +1100,6 @@ export default function AdminDashboardScreen({ navigation }) {
     </SafeAreaView>
   );
 }
-
-// HELPERS
-const getOrderStatusColor = (status) => {
-  const colors = {
-    pending: '#FFA94D',
-    processing: '#6C63FF',
-    shipped: '#C471ED',
-    delivered: '#10d98c',
-    cancelled: '#FF6B9D',
-  };
-  return colors[status] || '#A0A0A0';
-};
-
-const getOrderStatusLabel = (status) => {
-  const labels = {
-    pending: 'En attente',
-    processing: 'En traitement',
-    shipped: 'Expédiée',
-    delivered: 'Livrée',
-    cancelled: 'Annulée',
-  };
-  return labels[status] || status;
-};
-
-const getRoleColor = (role) => {
-  const colors = {
-    admin: '#FFA94D',
-    startup: '#6C63FF',
-    client: '#10d98c',
-  };
-  return colors[role] || '#A0A0A0';
-};
-
-const getRoleLabel = (role) => {
-  const labels = {
-    admin: '👑 Admin',
-    startup: '🏢 Startup',
-    client: '👤 Client',
-  };
-  return labels[role] || role;
-};
 
 const styles = StyleSheet.create({
   container: {
