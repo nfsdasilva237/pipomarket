@@ -14,6 +14,8 @@ import AdminAddStartupScreen from './screens/AdminAddStartupScreen';
 import AdminDashboardScreen from './screens/AdminDashboardScreen';
 import BDLStudioHomeScreen from './screens/BDLStudioHomeScreen';
 import BDLServiceDetailScreen from './screens/BDLServiceDetailScreen';
+import BDLPackageOrderScreen from './screens/BDLPackageOrderScreen';
+import ContactScreen from './screens/ContactScreen';
 import AdminManageAmbassadorCodesScreen from './screens/AdminManageAmbassadorCodesScreen';
 import AdminManageCategoriesScreen from './screens/AdminManageCategoriesScreen';
 import AdminManagePromoCodesScreen from './screens/AdminManagePromoCodesScreen';
@@ -500,6 +502,16 @@ const saveCartToStorage = async () => {
         <Stack.Screen
           name="BDLServiceDetail"
           component={BDLServiceDetailScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BDLPackageOrder"
+          component={BDLPackageOrderScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Contact"
+          component={ContactScreen}
           options={{ headerShown: false }}
         />
 
