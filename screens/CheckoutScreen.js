@@ -112,32 +112,32 @@ export default function CheckoutScreen({ navigation, route, cart, clearCart }) {
       const orderData = {
         userId: userId,
         items: cart.map(item => ({
-          productId: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          startupId: item.startupId,
-          startupName: item.startupName,
+          productId: item.id || '',
+          name: item.name || 'Produit',
+          price: item.price || 0,
+          quantity: item.quantity || 1,
+          startupId: item.startupId || 'unknown',
+          startupName: item.startupName || 'Startup',
         })),
-        
+
         // Montants
-        subtotal: subtotal,
-        shippingCost: finalShippingCost,
-        discount: discount,
-        total: total,
-        
+        subtotal: subtotal || 0,
+        shippingCost: finalShippingCost || 0,
+        discount: discount || 0,
+        total: total || 0,
+
         // Code promo
         promoCode: appliedPromo ? {
-          id: appliedPromo.id,
-          code: appliedPromo.code,
-          type: appliedPromo.type,
-          value: appliedPromo.value,
-          discountAmount: discount
+          id: appliedPromo.id || '',
+          code: appliedPromo.code || '',
+          type: appliedPromo.type || 'percentage',
+          value: appliedPromo.value || 0,
+          discountAmount: discount || 0
         } : null,
-        
+
         // Autres infos
-        deliveryAddress: deliveryAddress,
-        paymentMethod: paymentMethod,
+        deliveryAddress: deliveryAddress || '',
+        paymentMethod: paymentMethod || 'cash',
         status: 'pending',
         createdAt: serverTimestamp(),
       };

@@ -102,17 +102,17 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
 
       // 2. Créer commande
       const orderItems = items.map(item => ({
-        productId: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        startupId: item.startupId,
+        productId: item.id || '',
+        name: item.name || 'Produit',
+        price: item.price || 0,
+        quantity: item.quantity || 1,
+        startupId: item.startupId || 'unknown',
       }));
 
       const order = await addDoc(collection(db, 'orders'), {
-        userId: auth.currentUser.uid,
+        userId: auth.currentUser?.uid || 'anonymous',
         items: orderItems,
-        total: startupTotal,
+        total: startupTotal || 0,
         status: 'pending',
         paymentStatus: 'pending',
         createdAt: new Date(),

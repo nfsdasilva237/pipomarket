@@ -10,12 +10,12 @@ export const orderService = {
     try {
       const { userId, items, total, deliveryInfo } = orderData;
 
-      // Créer la commande
+      // Créer la commande (éviter les undefined)
       const orderRef = await addDoc(collection(db, 'orders'), {
-        userId,
-        items,
-        total,
-        deliveryInfo,
+        userId: userId || 'anonymous',
+        items: items || [],
+        total: total || 0,
+        deliveryInfo: deliveryInfo || {},
         status: 'pending', // pending, processing, shipped, delivered, cancelled
         createdAt: new Date(),
       });
