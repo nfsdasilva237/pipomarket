@@ -591,7 +591,7 @@ export default function StartupDashboardScreen({ route, navigation }) {
 
                 <TouchableOpacity
                   style={[styles.actionCard, { backgroundColor: '#FF9500' }]}
-                  onPress={() => navigation.navigate('StartupMessages')}
+                  onPress={() => navigation.navigate('StartupMessages', { startupId })}
                 >
                   <Text style={styles.actionIcon}>💬</Text>
                   <Text style={styles.actionText}>Messages</Text>

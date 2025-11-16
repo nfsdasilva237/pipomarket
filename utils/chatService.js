@@ -69,7 +69,14 @@ export const chatService = {
           [userId]: userInfo,
           [startupId]: startupInfo
         },
+        // ✅ Champs explicites pour compatibilité avec StartupMessagesScreen
+        userId: userId,
+        startupId: startupId,
+        startupName: startupData?.name || 'Startup',
         lastMessage: null,
+        lastMessageTime: new Date(),
+        unreadStartup: 0,
+        unreadUser: 0,
         updatedAt: new Date(),
         createdAt: new Date()
       };
@@ -123,22 +130,31 @@ export const chatService = {
       // Ajouter le message
       await addDoc(collection(db, 'conversations', conversationId, 'messages'), messageData);
 
+      // Déterminer le type de destinataire pour incrémenter le bon compteur
+      const recipientInfo = conversationData.participantsInfo[recipient];
+      const isRecipientStartup = recipientInfo?.type === 'startup';
+
       // Mettre à jour la conversation
-      await updateDoc(conversationRef, {
-        lastMessage: {
-          content: type === 'text' ? message : '📷 Photo',
-          timestamp: new Date(),
-          senderId
-        },
+      const updateData = {
+        lastMessage: type === 'text' ? message : '📷 Photo',
+        lastMessageTime: new Date(),
         updatedAt: new Date(),
         [`unreadCount.${recipient}`]: (conversationData.unreadCount?.[recipient] || 0) + 1
-      });
+      };
+
+      // ✅ Mettre à jour les compteurs spécifiques pour compatibilité
+      if (isRecipientStartup) {
+        updateData.unreadStartup = (conversationData.unreadStartup || 0) + 1;
+      } else {
+        updateData.unreadUser = (conversationData.unreadUser || 0) + 1;
+      }
+
+      await updateDoc(conversationRef, updateData);
 
       // Envoyer notification
       const senderInfo = conversationData.participantsInfo[senderId];
-      const recipientInfo = conversationData.participantsInfo[recipient];
 
-      if (recipientInfo.type === 'startup') {
+      if (isRecipientStartup) {
         await notificationService.sendNotificationToStartup(
           recipient,
           '💬 Nouveau message',
@@ -172,27 +188,36 @@ export const chatService = {
   },
 
   // Marquer les messages comme lus
-  markMessagesAsRead: async (conversationId, userId) => {
+  markMessagesAsRead: async (conversationId, userId, isStartup = false) => {
     try {
       const conversationRef = doc(db, 'conversations', conversationId);
-      
-      // Mettre à jour le compteur de messages non lus
-      await updateDoc(conversationRef, {
+
+      // Mettre à jour les compteurs de messages non lus
+      const updateData = {
         [`unreadCount.${userId}`]: 0
-      });
+      };
+
+      // ✅ Réinitialiser aussi le compteur spécifique
+      if (isStartup) {
+        updateData.unreadStartup = 0;
+      } else {
+        updateData.unreadUser = 0;
+      }
+
+      await updateDoc(conversationRef, updateData);
 
       // Marquer tous les messages non lus comme lus
       const q = query(
         collection(db, 'conversations', conversationId, 'messages'),
         where('read', '==', false)
       );
-      
+
       const unreadMessages = await getDocs(q);
-      
+
       const updatePromises = unreadMessages.docs.map(doc =>
         updateDoc(doc.ref, { read: true, readAt: new Date() })
       );
-      
+
       await Promise.all(updatePromises);
 
       return { success: true };

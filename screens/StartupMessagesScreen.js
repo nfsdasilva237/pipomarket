@@ -11,20 +11,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { collection, query, where, onSnapshot, orderBy, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 
-export default function StartupMessagesScreen({ navigation }) {
+export default function StartupMessagesScreen({ route, navigation }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Récupérer startupId depuis les params (important pour login par code)
+  const { startupId: paramStartupId } = route.params || {};
   const currentUser = auth.currentUser;
+
+  // Utiliser startupId des params OU currentUser.uid en fallback
+  const effectiveStartupId = paramStartupId || currentUser?.uid;
 
   // Écouter les conversations en temps réel
   useEffect(() => {
-    if (!currentUser) return;
+    if (!effectiveStartupId) return;
 
     const conversationsRef = collection(db, 'conversations');
     const q = query(
       conversationsRef,
-      where('startupId', '==', currentUser.uid),
+      where('startupId', '==', effectiveStartupId),
       orderBy('lastMessageTime', 'desc')
     );
 
@@ -57,7 +62,7 @@ export default function StartupMessagesScreen({ navigation }) {
     });
 
     return () => unsubscribe();
-  }, [currentUser]);
+  }, [effectiveStartupId]);
 
   const renderConversation = ({ item }) => {
     const hasUnread = item.unreadStartup > 0;
