@@ -1,7 +1,8 @@
-// screens/RegisterScreen.js - VERSION FINALE AVEC FEEDBACK VISUEL
+// screens/RegisterScreen.js - VERSION AVEC LOGO ET CATEGORIE
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { useState } from 'react';
+import { doc, setDoc, collection, getDocs } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,11 +14,14 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { auth, db } from '../config/firebase';
+import * as ImagePicker from 'expo-image-picker';
+import { auth, db, storage } from '../config/firebase';
 import adminService from '../utils/adminService';
 import ambassadorService from '../utils/ambassadorService';
+
 export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,18 +32,123 @@ export default function RegisterScreen({ navigation }) {
   const [startupName, setStartupName] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Logo et catégorie pour startup
+  const [logoImage, setLogoImage] = useState(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+
   // État
   const [promoCode, setPromoCode] = useState('');
-  
+
   // AMBASSADOR SECRET
   const [showAmbassadorInput, setShowAmbassadorInput] = useState(false);
   const [ambassadorCode, setAmbassadorCode] = useState('');
   const [ambassadorCodeValid, setAmbassadorCodeValid] = useState(false);
-  
+
   // ADMIN SECRET
   const [showAdminInput, setShowAdminInput] = useState(false);
   const [adminCode, setAdminCode] = useState('');
   const [adminCodeValid, setAdminCodeValid] = useState(false);
+
+  // Charger les catégories au démarrage
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      const catsSnap = await getDocs(collection(db, 'categories'));
+      const catsData = catsSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setCategories(catsData);
+    } catch (error) {
+      console.log('Erreur chargement catégories:', error);
+    }
+  };
+
+  // Sélectionner une image pour le logo
+  const pickLogo = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', 'Nous avons besoin d\'accéder à vos photos');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setLogoImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Erreur sélection image:', error);
+      Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
+    }
+  };
+
+  // Upload du logo vers Firebase Storage
+  const uploadLogo = async (userId) => {
+    if (!logoImage) return null;
+
+    try {
+      setUploadingLogo(true);
+
+      // Créer un blob à partir de l'URI en utilisant XMLHttpRequest
+      const blob = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.onload = function () {
+          resolve(xhr.response);
+        };
+        xhr.onerror = function (e) {
+          console.error('XHR error:', e);
+          reject(new TypeError('Network request failed'));
+        };
+        xhr.responseType = 'blob';
+        xhr.open('GET', logoImage, true);
+        xhr.send(null);
+      });
+
+      const filename = `startups/${userId}/logo_${Date.now()}.jpg`;
+      const storageRef = ref(storage, filename);
+
+      // Upload avec uploadBytesResumable
+      const uploadTask = uploadBytesResumable(storageRef, blob);
+
+      return new Promise((resolve, reject) => {
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            console.log('Upload progress:', progress.toFixed(0) + '%');
+          },
+          (error) => {
+            console.error('Upload error:', error);
+            blob.close();
+            reject(error);
+          },
+          async () => {
+            blob.close();
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve(downloadURL);
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Erreur upload logo:', error);
+      throw error;
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   // Valider code admin en temps réel
   const handleAdminCodeChange = (code) => {
@@ -80,6 +189,11 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
+    if (accountType === 'startup' && !selectedCategory) {
+      Alert.alert('Erreur', 'Veuillez choisir une catégorie pour votre startup');
+      return;
+    }
+
     if (accountType === 'ambassador' && !ambassadorCodeValid) {
       Alert.alert('Erreur', 'Code ambassadeur invalide ou manquant');
       return;
@@ -96,6 +210,17 @@ export default function RegisterScreen({ navigation }) {
       let finalRole = accountType;
       if (adminCode && adminService.verifyAdminCode(adminCode)) {
         finalRole = 'admin';
+      }
+
+      // Upload logo si startup
+      let logoURL = '';
+      if (accountType === 'startup' && logoImage && finalRole !== 'admin') {
+        try {
+          logoURL = await uploadLogo(user.uid);
+        } catch (uploadError) {
+          console.error('Erreur upload logo:', uploadError);
+          // Continuer sans logo si l'upload échoue
+        }
       }
 
       // Créer document utilisateur
@@ -122,6 +247,8 @@ export default function RegisterScreen({ navigation }) {
           ownerName: name,
           ownerEmail: email,
           ownerPhone: phone || '',
+          category: selectedCategory,
+          logo: logoURL,
           createdAt: new Date(),
           active: true,
           verified: false,
@@ -146,14 +273,14 @@ export default function RegisterScreen({ navigation }) {
       }
 
       // Message succès selon le rôle
-      const successMessage = 
-        finalRole === 'admin' 
+      const successMessage =
+        finalRole === 'admin'
           ? '🎉 Compte Administrateur créé avec succès !\n\nVous avez maintenant le contrôle total sur PipoMarket.'
           : accountType === 'startup'
           ? '🏢 Compte Startup créé avec succès !\n\nVous pouvez maintenant vendre vos produits.'
           : accountType === 'ambassador'
-          ? '� Compte Ambassadeur créé avec succès !\n\nVous pouvez maintenant gérer vos recommandations.'
-          : '�👋 Bienvenue sur PipoMarket !\n\nCommencez à découvrir les produits.';
+          ? '👥 Compte Ambassadeur créé avec succès !\n\nVous pouvez maintenant gérer vos recommandations.'
+          : '👋 Bienvenue sur PipoMarket !\n\nCommencez à découvrir les produits.';
 
       Alert.alert(
         'Succès !',
@@ -177,7 +304,7 @@ export default function RegisterScreen({ navigation }) {
       );
     } catch (error) {
       console.error('Erreur inscription:', error);
-      
+
       let errorMessage = 'Une erreur est survenue';
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'Cet email est déjà utilisé';
@@ -186,7 +313,7 @@ export default function RegisterScreen({ navigation }) {
       } else if (error.code === 'auth/weak-password') {
         errorMessage = 'Mot de passe trop faible';
       }
-      
+
       Alert.alert('Erreur', errorMessage);
     } finally {
       setLoading(false);
@@ -338,6 +465,72 @@ export default function RegisterScreen({ navigation }) {
                   value={startupName}
                   onChangeText={setStartupName}
                 />
+
+                {/* LOGO UPLOAD */}
+                <Text style={styles.label}>Logo de la startup</Text>
+                <TouchableOpacity
+                  style={styles.logoUploadButton}
+                  onPress={pickLogo}
+                >
+                  {logoImage ? (
+                    <View style={styles.logoPreviewContainer}>
+                      <Image source={{ uri: logoImage }} style={styles.logoPreview} />
+                      <TouchableOpacity
+                        style={styles.removeLogo}
+                        onPress={() => setLogoImage(null)}
+                      >
+                        <Text style={styles.removeLogoText}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.logoPlaceholder}>
+                      <Text style={styles.logoPlaceholderIcon}>📷</Text>
+                      <Text style={styles.logoPlaceholderText}>
+                        Ajouter un logo
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {/* CATEGORIE SELECTION */}
+                <Text style={styles.label}>Catégorie *</Text>
+                <TouchableOpacity
+                  style={styles.categorySelector}
+                  onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+                >
+                  <Text style={selectedCategory ? styles.categorySelectorText : styles.categorySelectorPlaceholder}>
+                    {selectedCategory
+                      ? categories.find(c => c.id === selectedCategory)?.emoji + ' ' + categories.find(c => c.id === selectedCategory)?.name
+                      : 'Choisir une catégorie'}
+                  </Text>
+                  <Text style={styles.categorySelectorArrow}>
+                    {showCategoryPicker ? '▲' : '▼'}
+                  </Text>
+                </TouchableOpacity>
+
+                {showCategoryPicker && (
+                  <View style={styles.categoryPickerContainer}>
+                    {categories.map((cat) => (
+                      <TouchableOpacity
+                        key={cat.id}
+                        style={[
+                          styles.categoryOption,
+                          selectedCategory === cat.id && styles.categoryOptionSelected,
+                        ]}
+                        onPress={() => {
+                          setSelectedCategory(cat.id);
+                          setShowCategoryPicker(false);
+                        }}
+                      >
+                        <Text style={styles.categoryOptionEmoji}>{cat.emoji}</Text>
+                        <Text style={styles.categoryOptionText}>{cat.name}</Text>
+                        {selectedCategory === cat.id && (
+                          <Text style={styles.categoryOptionCheck}>✓</Text>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </>
             )}
 
@@ -360,13 +553,13 @@ export default function RegisterScreen({ navigation }) {
             />
 
             <Text style={styles.label}>Code Ambassadeur (Optionnel)</Text>
-<TextInput
-  style={styles.input}
-  placeholder="AMB-12345"
-  value={promoCode}
-  onChangeText={setPromoCode}
-  autoCapitalize="characters"
-/>
+            <TextInput
+              style={styles.input}
+              placeholder="AMB-12345"
+              value={promoCode}
+              onChangeText={setPromoCode}
+              autoCapitalize="characters"
+            />
 
             {/* OPTION ADMIN (CACHÉ) */}
             <TouchableOpacity
@@ -410,22 +603,22 @@ export default function RegisterScreen({ navigation }) {
 
           {/* BOUTON INSCRIPTION */}
           <TouchableOpacity
-            style={[styles.registerButton, loading && styles.registerButtonDisabled]}
+            style={[styles.registerButton, (loading || uploadingLogo) && styles.registerButtonDisabled]}
             onPress={handleRegister}
-            
-            disabled={loading}
-            
+            disabled={loading || uploadingLogo}
           >
-            
-            {loading ? (
-              <ActivityIndicator color="white" />
+            {loading || uploadingLogo ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color="white" />
+                <Text style={styles.loadingText}>
+                  {uploadingLogo ? 'Upload logo...' : 'Création...'}
+                </Text>
+              </View>
             ) : (
               <Text style={styles.registerButtonText}>
                 {adminCodeValid ? '👑 Créer Admin' : 'S\'inscrire'}
               </Text>
-              
             )}
-            
           </TouchableOpacity>
 
           {/* LIEN CONNEXION */}
@@ -441,7 +634,6 @@ export default function RegisterScreen({ navigation }) {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-  
 }
 
 const styles = StyleSheet.create({
@@ -453,18 +645,46 @@ const styles = StyleSheet.create({
   backButton: { fontSize: 32, color: '#007AFF' },
   title: { fontSize: 32, fontWeight: 'bold', color: '#000', marginBottom: 8 },
   subtitle: { fontSize: 16, color: '#8E8E93', marginBottom: 32 },
-  
+
   accountTypeContainer: { flexDirection: 'row', gap: 12, marginBottom: 32 },
   accountTypeButton: { flex: 1, backgroundColor: 'white', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 2, borderColor: '#E5E5EA' },
   accountTypeButtonActive: { borderColor: '#007AFF', backgroundColor: '#F0F8FF' },
   accountTypeIcon: { fontSize: 32, marginBottom: 8 },
   accountTypeText: { fontSize: 15, fontWeight: '600', color: '#8E8E93' },
   accountTypeTextActive: { color: '#007AFF' },
-  
+
   form: { marginBottom: 24 },
   label: { fontSize: 13, fontWeight: '600', color: '#000', marginBottom: 8, marginTop: 8 },
   input: { backgroundColor: 'white', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, marginBottom: 16, borderWidth: 1, borderColor: '#E5E5EA' },
-  
+  inputValid: { borderColor: '#34C759', backgroundColor: '#F0FFF4' },
+  inputInvalid: { borderColor: '#FF3B30', backgroundColor: '#FFF0F0' },
+
+  validationText: { fontSize: 12, marginTop: -12, marginBottom: 8 },
+  validText: { color: '#34C759' },
+  invalidText: { color: '#FF3B30' },
+
+  // Logo styles
+  logoUploadButton: { marginBottom: 16 },
+  logoPreviewContainer: { position: 'relative', alignItems: 'center' },
+  logoPreview: { width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: '#007AFF' },
+  removeLogo: { position: 'absolute', top: 0, right: '30%', backgroundColor: '#FF3B30', borderRadius: 15, width: 30, height: 30, justifyContent: 'center', alignItems: 'center' },
+  removeLogoText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+  logoPlaceholder: { backgroundColor: 'white', borderRadius: 12, padding: 30, alignItems: 'center', borderWidth: 2, borderColor: '#E5E5EA', borderStyle: 'dashed' },
+  logoPlaceholderIcon: { fontSize: 40, marginBottom: 10 },
+  logoPlaceholderText: { fontSize: 14, color: '#8E8E93' },
+
+  // Category styles
+  categorySelector: { backgroundColor: 'white', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 16, borderWidth: 1, borderColor: '#E5E5EA', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  categorySelectorText: { fontSize: 15, color: '#000' },
+  categorySelectorPlaceholder: { fontSize: 15, color: '#C7C7CC' },
+  categorySelectorArrow: { fontSize: 12, color: '#8E8E93' },
+  categoryPickerContainer: { backgroundColor: 'white', borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E5E5EA', maxHeight: 200 },
+  categoryOption: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' },
+  categoryOptionSelected: { backgroundColor: '#F0F8FF' },
+  categoryOptionEmoji: { fontSize: 20, marginRight: 10 },
+  categoryOptionText: { fontSize: 15, flex: 1 },
+  categoryOptionCheck: { color: '#007AFF', fontSize: 18, fontWeight: 'bold' },
+
   adminTrigger: { alignItems: 'center', padding: 8, marginVertical: 8 },
   adminTriggerText: { fontSize: 24, opacity: 0.3 },
   adminSection: { marginTop: 16, backgroundColor: '#FFF3CD', borderRadius: 12, padding: 16, borderWidth: 2, borderColor: '#FFD700' },
@@ -474,11 +694,13 @@ const styles = StyleSheet.create({
   adminInputInvalid: { borderColor: '#FF3B30', backgroundColor: '#FFF0F0' },
   adminValidationIcon: { position: 'absolute', right: 16, top: 14, fontSize: 20 },
   adminHint: { fontSize: 12, color: '#8E8E93', marginTop: 4, fontStyle: 'italic', lineHeight: 18 },
-  
+
   registerButton: { backgroundColor: '#007AFF', borderRadius: 12, padding: 16, alignItems: 'center', shadowColor: '#007AFF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   registerButtonDisabled: { backgroundColor: '#C7C7CC' },
   registerButtonText: { color: 'white', fontSize: 17, fontWeight: 'bold' },
-  
+  loadingContainer: { flexDirection: 'row', alignItems: 'center' },
+  loadingText: { color: 'white', marginLeft: 10, fontSize: 15 },
+
   loginLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   loginLinkText: { fontSize: 15, color: '#8E8E93' },
   loginLinkButton: { fontSize: 15, color: '#007AFF', fontWeight: '600' },
