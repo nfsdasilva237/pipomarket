@@ -1,5 +1,5 @@
 // screens/LoginScreen.js - AVEC DÉTECTION RÔLE AUTOMATIQUE
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,6 +21,40 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert(
+        'Email requis',
+        'Veuillez entrer votre adresse email pour réinitialiser votre mot de passe'
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await sendPasswordResetEmail(auth, email);
+      Alert.alert(
+        'Email envoyé ✅',
+        `Un email de réinitialisation a été envoyé à ${email}. Vérifiez votre boîte de réception (et les spams).`
+      );
+    } catch (error) {
+      console.error('Erreur reset password:', error);
+
+      let errorMessage = 'Une erreur est survenue';
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'Aucun compte trouvé avec cet email';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Adresse email invalide';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Trop de tentatives. Réessayez plus tard';
+      }
+
+      Alert.alert('Erreur', errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -109,7 +143,7 @@ export default function LoginScreen({ navigation }) {
               editable={!loading}
             />
 
-            <TouchableOpacity style={styles.forgotPassword}>
+            <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
               <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>
             </TouchableOpacity>
           </View>
