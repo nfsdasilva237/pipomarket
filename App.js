@@ -2,11 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState, useRef } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
 import { auth } from './config/firebase';
 import adminService from './utils/adminService';
 import { notificationService } from './utils/notificationService';
+import PushNotificationService from './services/PushNotificationService';
 // Importation des écrans
 import AddProductScreen from './screens/AddProductScreen';
 import AddressesScreen from './screens/AddressesScreen';
@@ -261,13 +262,33 @@ const saveCartToStorage = async () => {
   }
 };
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const navigationRef = useRef(null);
 
   const handleNotificationRead = () => {
     setUnreadNotifications(count => Math.max(0, count - 1));
   };
 
   useEffect(() => {
-    // Configuration des notifications
+    // Configuration des notifications push (Expo)
+    const setupPushNotifications = async (uid) => {
+      if (!uid) return;
+
+      try {
+        // Initialiser les notifications push Expo
+        if (Platform.OS !== 'web') {
+          const pushResult = await PushNotificationService.initialize();
+          if (pushResult.success) {
+            console.log('Push notifications initialized:', pushResult.token);
+          } else {
+            console.log('Push notifications not available:', pushResult.error);
+          }
+        }
+      } catch (error) {
+        console.log('Push notifications setup error:', error.message);
+      }
+    };
+
+    // Configuration des notifications Firebase (fallback)
     const setupNotifications = async (uid) => {
       if (!uid) {
         console.error('setupNotifications: uid est requis');
@@ -277,11 +298,11 @@ const saveCartToStorage = async () => {
       try {
         // Demander les permissions de notification
         const permissionGranted = await notificationService.requestPermissions();
-        
+
         if (permissionGranted?.success) {
           // Enregistrer le token de l'appareil
           const tokenResult = await notificationService.registerDeviceToken(uid);
-          
+
           if (tokenResult?.success) {
             // Configurer les gestionnaires de notifications
             notificationService.setupNotificationHandlers((notification) => {
@@ -308,18 +329,21 @@ const saveCartToStorage = async () => {
     // Écouter l'état de l'authentification
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (!user?.uid) return;
-      
+
       // Reset du compteur à chaque connexion
       setUnreadNotifications(0);
-      
-      // Configurer les notifications avec l'ID de l'utilisateur
+
+      // Configurer les notifications push Expo
+      setupPushNotifications(user.uid);
+
+      // Configurer les notifications Firebase
       setupNotifications(user.uid);
-      
+
       // Enregistrer le token de l'appareil
       notificationService.registerDeviceToken(user.uid).catch(error => {
         console.error('Erreur enregistrement token:', error);
       });
-      
+
       // Charger le compte de notifications non lues
       notificationService.getUnreadCount(user.uid)
         .then(count => {
@@ -333,6 +357,7 @@ const saveCartToStorage = async () => {
     return () => {
       unsubscribe();
       notificationService.cleanup();
+      PushNotificationService.cleanup();
     };
   }, []);
 
