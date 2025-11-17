@@ -1,29 +1,213 @@
-// utils/adminService.js - SERVICE ADMIN
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+// utils/adminService.js - SERVICE ADMIN AVEC INVITATIONS SÉCURISÉES
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, orderBy, addDoc } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
+import * as Crypto from 'expo-crypto';
 
-// CODE SECRET ADMIN
-const ADMIN_SECRET_CODE = 'PIPOMARKET_ADMIN_2025';
+// Générer un code d'invitation sécurisé
+const generateSecureInviteCode = async () => {
+  const randomBytes = await Crypto.getRandomBytesAsync(16);
+  const hexString = Array.from(randomBytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  return `ADMIN_${hexString.toUpperCase()}`;
+};
+
+// Hash un code pour stockage sécurisé
+const hashCode = async (code) => {
+  return await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    code
+  );
+};
 
 export const adminService = {
-  
-  // VÉRIFIER CODE ADMIN
-  verifyAdminCode: (code) => {
-    return code === ADMIN_SECRET_CODE;
+
+  // CRÉER UNE INVITATION ADMIN (par un admin existant)
+  createAdminInvitation: async (creatorAdminId, inviteeEmail) => {
+    try {
+      // Vérifier que le créateur est bien admin
+      const isCreatorAdmin = await adminService.isAdmin(creatorAdminId);
+      if (!isCreatorAdmin) {
+        return { success: false, error: 'Seuls les admins peuvent créer des invitations' };
+      }
+
+      // Générer code unique
+      const inviteCode = await generateSecureInviteCode();
+      const hashedCode = await hashCode(inviteCode);
+
+      // Expiration dans 24h
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+
+      // Sauvegarder l'invitation
+      await addDoc(collection(db, 'adminInvitations'), {
+        hashedCode: hashedCode,
+        inviteeEmail: inviteeEmail.toLowerCase(),
+        createdBy: creatorAdminId,
+        createdAt: new Date(),
+        expiresAt: expiresAt,
+        used: false,
+        usedBy: null,
+        usedAt: null,
+      });
+
+      return {
+        success: true,
+        inviteCode: inviteCode,
+        expiresAt: expiresAt,
+        message: `Code d'invitation créé pour ${inviteeEmail}. Expire dans 24h.`
+      };
+    } catch (error) {
+      console.error('Erreur création invitation admin:', error);
+      return { success: false, error: error.message };
+    }
   },
 
-  // CRÉER ADMIN
-  createAdmin: async (userId, userData) => {
+  // VÉRIFIER ET UTILISER UN CODE D'INVITATION
+  verifyAndUseInvitation: async (inviteCode, userEmail, userId) => {
     try {
+      const hashedCode = await hashCode(inviteCode);
+
+      // Chercher l'invitation
+      const q = query(
+        collection(db, 'adminInvitations'),
+        where('hashedCode', '==', hashedCode),
+        where('used', '==', false)
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        return { success: false, error: 'Code d\'invitation invalide ou déjà utilisé' };
+      }
+
+      const invitationDoc = snapshot.docs[0];
+      const invitation = invitationDoc.data();
+
+      // Vérifier l'email
+      if (invitation.inviteeEmail !== userEmail.toLowerCase()) {
+        return { success: false, error: 'Ce code est réservé à une autre adresse email' };
+      }
+
+      // Vérifier expiration
+      if (invitation.expiresAt.toDate() < new Date()) {
+        return { success: false, error: 'Code d\'invitation expiré' };
+      }
+
+      // Marquer comme utilisé
+      await updateDoc(doc(db, 'adminInvitations', invitationDoc.id), {
+        used: true,
+        usedBy: userId,
+        usedAt: new Date(),
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur vérification invitation:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // CRÉER ADMIN AVEC INVITATION
+  createAdminWithInvitation: async (userId, userData, inviteCode) => {
+    try {
+      // Vérifier et utiliser l'invitation
+      const inviteResult = await adminService.verifyAndUseInvitation(
+        inviteCode,
+        userData.email,
+        userId
+      );
+
+      if (!inviteResult.success) {
+        return inviteResult;
+      }
+
+      // Créer le compte admin
       await setDoc(doc(db, 'users', userId), {
         ...userData,
         role: 'admin',
         createdAt: new Date(),
         isAdmin: true,
       });
+
       return { success: true };
     } catch (error) {
       console.error('Erreur création admin:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // CRÉER LE PREMIER ADMIN (Bootstrap - une seule fois)
+  // Utiliser uniquement via Firebase Console ou script sécurisé
+  createFirstAdmin: async (userId, userData, masterKey) => {
+    try {
+      // Le master key doit être configuré côté serveur/Firebase Functions
+      // Pour l'instant, on vérifie qu'il n'y a pas d'admin existant
+
+      const stats = await adminService.getGlobalStats();
+      if (stats && stats.admins > 0) {
+        return {
+          success: false,
+          error: 'Des admins existent déjà. Utilisez le système d\'invitation.'
+        };
+      }
+
+      // Vérifier le master key (stocké en variable d'environnement)
+      // En production, ceci devrait être vérifié via Firebase Functions
+      const expectedHash = 'YOUR_MASTER_KEY_HASH_HERE'; // À configurer
+      const providedHash = await hashCode(masterKey);
+
+      if (providedHash !== expectedHash) {
+        return { success: false, error: 'Master key invalide' };
+      }
+
+      await setDoc(doc(db, 'users', userId), {
+        ...userData,
+        role: 'admin',
+        createdAt: new Date(),
+        isAdmin: true,
+        isFirstAdmin: true,
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur création premier admin:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // LISTE DES INVITATIONS ACTIVES (pour admin)
+  getActiveInvitations: async () => {
+    try {
+      const q = query(
+        collection(db, 'adminInvitations'),
+        where('used', '==', false),
+        orderBy('createdAt', 'desc')
+      );
+
+      const snapshot = await getDocs(q);
+      const now = new Date();
+
+      return snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          expiresAt: doc.data().expiresAt?.toDate(),
+          createdAt: doc.data().createdAt?.toDate(),
+        }))
+        .filter(inv => inv.expiresAt > now); // Filtrer les expirés
+    } catch (error) {
+      console.error('Erreur récupération invitations:', error);
+      return [];
+    }
+  },
+
+  // RÉVOQUER UNE INVITATION
+  revokeInvitation: async (invitationId) => {
+    try {
+      await deleteDoc(doc(db, 'adminInvitations', invitationId));
+      return { success: true };
+    } catch (error) {
       return { success: false, error: error.message };
     }
   },
@@ -101,7 +285,7 @@ export const adminService = {
       // Compter utilisateurs
       const usersSnap = await getDocs(collection(db, 'users'));
       const totalUsers = usersSnap.size;
-      
+
       let clients = 0, startupUsers = 0, admins = 0;
       usersSnap.forEach(doc => {
         const role = doc.data().role || 'client';
@@ -209,11 +393,11 @@ export const adminService = {
     try {
       // Supprimer startup
       await deleteDoc(doc(db, 'startups', startupId));
-      
+
       // Supprimer produits associés
       const productsQ = query(collection(db, 'products'), where('startupId', '==', startupId));
       const productsSnap = await getDocs(productsQ);
-      
+
       const deletePromises = productsSnap.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
 
