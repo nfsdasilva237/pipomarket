@@ -1,0 +1,67 @@
+rules_version = '2';
+
+// ==========================================
+// FIREBASE STORAGE SECURITY RULES
+// ==========================================
+// Déployez ces règles avec: firebase deploy --only storage
+// ==========================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ==========================================
+    // RÈGLES POUR LES IMAGES DE PRODUITS
+    // ==========================================
+    match /products/{imageId} {
+      // Lecture publique, écriture pour utilisateurs authentifiés
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024  // Max 5MB
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // ==========================================
+    // RÈGLES POUR LES IMAGES DE CHAT
+    // ==========================================
+    match /chat/{conversationId}/{imageId} {
+      // Les participants de la conversation peuvent lire et écrire
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024  // Max 10MB
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // ==========================================
+    // RÈGLES POUR LES LOGOS DE STARTUPS
+    // ==========================================
+    match /startups/{userId}/{logoId} {
+      // Lecture publique
+      allow read: if true;
+      // Écriture seulement pour le propriétaire
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024  // Max 5MB
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // ==========================================
+    // RÈGLES POUR LES AVATARS UTILISATEURS
+    // ==========================================
+    match /avatars/{userId}/{avatarId} {
+      // Lecture publique
+      allow read: if true;
+      // Écriture seulement pour le propriétaire
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 3 * 1024 * 1024  // Max 3MB
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // ==========================================
+    // RÈGLE PAR DÉFAUT: REFUSER TOUT LE RESTE
+    // ==========================================
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

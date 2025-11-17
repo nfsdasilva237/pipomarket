@@ -98,7 +98,7 @@ export const chatService = {
     try {
       const conversationRef = doc(db, 'conversations', conversationId);
       const conversationDoc = await getDoc(conversationRef);
-      
+
       if (!conversationDoc.exists()) {
         throw new Error('Conversation introuvable');
       }
@@ -109,12 +109,61 @@ export const chatService = {
       // Si c'est une image, l'uploader d'abord
       let imageUrl = null;
       if (type === 'image' && imageUri) {
-        const response = await fetch(imageUri);
-        const blob = await response.blob();
-        const imageName = `chat/${conversationId}/${Date.now()}.jpg`;
-        const imageRef = ref(storage, imageName);
-        await uploadBytes(imageRef, blob);
-        imageUrl = await getDownloadURL(imageRef);
+        try {
+          console.log('📤 Début upload image:', imageUri);
+
+          // Créer un blob compatible React Native avec fallback
+          let blob;
+          try {
+            // Méthode 1: Fetch (standard)
+            const response = await fetch(imageUri);
+            if (!response.ok) {
+              throw new Error(`Échec du fetch: ${response.status} ${response.statusText}`);
+            }
+            blob = await response.blob();
+            console.log('✅ Blob créé via fetch:', blob.size, 'bytes, type:', blob.type);
+          } catch (fetchError) {
+            // Méthode 2: XMLHttpRequest (fallback React Native)
+            console.warn('⚠️ Fetch échoué, tentative avec XMLHttpRequest...');
+            blob = await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.onload = function() {
+                resolve(xhr.response);
+              };
+              xhr.onerror = function(e) {
+                console.error('❌ Erreur XHR:', e);
+                reject(new Error('Échec de la création du blob via XHR'));
+              };
+              xhr.responseType = 'blob';
+              xhr.open('GET', imageUri, true);
+              xhr.send(null);
+            });
+            console.log('✅ Blob créé via XHR:', blob.size, 'bytes, type:', blob.type);
+          }
+
+          // Générer un nom de fichier unique
+          const imageName = `chat/${conversationId}/${Date.now()}.jpg`;
+          const imageRef = ref(storage, imageName);
+
+          console.log('📁 Référence storage:', imageName);
+
+          // Upload avec gestion d'erreur détaillée
+          await uploadBytes(imageRef, blob);
+          console.log('✅ Upload terminé');
+
+          // Récupérer l'URL de téléchargement
+          imageUrl = await getDownloadURL(imageRef);
+          console.log('✅ URL obtenue:', imageUrl);
+
+        } catch (uploadError) {
+          console.error('❌ Erreur détaillée upload image:', {
+            message: uploadError.message,
+            code: uploadError.code,
+            name: uploadError.name,
+            stack: uploadError.stack
+          });
+          throw new Error(`Échec upload image: ${uploadError.message}`);
+        }
       }
 
       // Créer le message
@@ -182,7 +231,14 @@ export const chatService = {
 
       return { success: true, message: messageData };
     } catch (error) {
-      console.error('Erreur envoi message:', error);
+      console.error('❌ Erreur envoi message:', {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        conversationId,
+        type,
+        stack: error.stack
+      });
       return { success: false, error: error.message };
     }
   },
