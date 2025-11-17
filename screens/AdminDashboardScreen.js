@@ -1,4 +1,5 @@
-// screens/AdminDashboardScreen.js - DASHBOARD ADMIN ULTRA-COMPLET
+// screens/AdminDashboardScreen.js - DASHBOARD ADMIN COMPLET
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,10 +9,13 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
+  Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { auth } from '../config/firebase';
 import adminService from '../utils/adminService';
 import ambassadorService from '../utils/ambassadorService';
@@ -19,17 +23,24 @@ import ambassadorService from '../utils/ambassadorService';
 const { width } = Dimensions.get('window');
 
 export default function AdminDashboardScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
-  
+
   const [startups, setStartups] = useState([]);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [users, setUsers] = useState([]);
   const [promoCodes, setPromoCodes] = useState([]);
   const [ambassadorCodes, setAmbassadorCodes] = useState([]);
+
+  // Admin Invitations
+  const [adminInvitations, setAdminInvitations] = useState([]);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [creatingInvite, setCreatingInvite] = useState(false);
 
   useEffect(() => {
     loadDashboard();
@@ -44,7 +55,6 @@ export default function AdminDashboardScreen({ navigation }) {
 
   const loadDashboard = async () => {
     try {
-      // Vérifier si user est admin
       const isAdmin = await adminService.isAdmin(auth.currentUser.uid);
       if (!isAdmin) {
         Alert.alert('Accès refusé', 'Vous n\'êtes pas administrateur', [
@@ -53,11 +63,9 @@ export default function AdminDashboardScreen({ navigation }) {
         return;
       }
 
-      // Charger stats globales
       const globalStats = await adminService.getGlobalStats();
       setStats(globalStats);
 
-      // Charger données selon onglet actif
       await loadTabData(activeTab);
 
     } catch (error) {
@@ -86,6 +94,9 @@ export default function AdminDashboardScreen({ navigation }) {
       case 'users':
         const usersData = await adminService.getAllUsers();
         setUsers(usersData);
+        // Charger aussi les invitations admin
+        const invitationsData = await adminService.getActiveInvitations();
+        setAdminInvitations(invitationsData);
         break;
       case 'promos':
         const promosData = await adminService.getAllPromoCodes();
@@ -101,6 +112,71 @@ export default function AdminDashboardScreen({ navigation }) {
   const onRefresh = () => {
     setRefreshing(true);
     loadDashboard();
+  };
+
+  // Créer invitation admin
+  const handleCreateAdminInvitation = async () => {
+    if (!inviteEmail.trim()) {
+      Alert.alert('Erreur', 'Veuillez entrer une adresse email');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(inviteEmail.trim())) {
+      Alert.alert('Erreur', 'Adresse email invalide');
+      return;
+    }
+
+    setCreatingInvite(true);
+    try {
+      const result = await adminService.createAdminInvitation(
+        auth.currentUser.uid,
+        inviteEmail.trim()
+      );
+
+      if (result.success) {
+        Alert.alert(
+          '✅ Invitation créée',
+          `Code d'invitation pour ${inviteEmail}:\n\n${result.inviteCode}\n\nExpire le: ${result.expiresAt.toLocaleString('fr-FR')}\n\nEnvoyez ce code à la personne concernée. Elle devra l'utiliser lors de son inscription.`,
+          [{ text: 'Copier et fermer', onPress: () => {
+            setShowInviteModal(false);
+            setInviteEmail('');
+            loadTabData('users');
+          }}]
+        );
+      } else {
+        Alert.alert('Erreur', result.error);
+      }
+    } catch (error) {
+      console.error('Erreur création invitation:', error);
+      Alert.alert('Erreur', 'Impossible de créer l\'invitation');
+    } finally {
+      setCreatingInvite(false);
+    }
+  };
+
+  // Révoquer invitation admin
+  const handleRevokeInvitation = (invitationId, email) => {
+    Alert.alert(
+      'Révoquer invitation',
+      `Annuler l'invitation pour ${email} ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Révoquer',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await adminService.revokeInvitation(invitationId);
+            if (result.success) {
+              Alert.alert('Succès', 'Invitation révoquée');
+              loadTabData('users');
+            } else {
+              Alert.alert('Erreur', result.error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleDeleteStartup = (startupId, startupName) => {
@@ -264,7 +340,7 @@ export default function AdminDashboardScreen({ navigation }) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color="#6C63FF" />
           <Text style={styles.loadingText}>Chargement du panel admin...</Text>
         </View>
       </SafeAreaView>
@@ -272,20 +348,27 @@ export default function AdminDashboardScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerIcon}>👑</Text>
-          <View>
-            <Text style={styles.headerTitle}>Admin PipoMarket</Text>
-            <Text style={styles.headerSubtitle}>Panel Administrateur</Text>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* HEADER MODERNE ET ÉLÉGANT */}
+      <LinearGradient
+        colors={['#6C63FF', '#5A52E0', '#4845C2']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerIcon}>👑</Text>
+            <View>
+              <Text style={styles.headerTitle}>Panel Admin</Text>
+              <Text style={styles.headerSubtitle}>PipoMarket Management</Text>
+            </View>
           </View>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={styles.logoutIcon}>⏻</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutIcon}>🚪</Text>
-        </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
@@ -294,11 +377,12 @@ export default function AdminDashboardScreen({ navigation }) {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* TABS */}
+        {/* TABS NAVIGATION */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.tabsContainer}
+          contentContainerStyle={styles.tabsContent}
         >
           <TouchableOpacity
             style={[styles.tab, activeTab === 'overview' && styles.activeTab]}
@@ -374,7 +458,7 @@ export default function AdminDashboardScreen({ navigation }) {
             }}
           >
             <Text style={[styles.tabText, activeTab === 'ambassadors' && styles.activeTabText]}>
-              👥 Codes Ambassadeur ({stats?.totalAmbassadorCodes || 0})
+              🤝 Ambassadeurs
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -382,147 +466,269 @@ export default function AdminDashboardScreen({ navigation }) {
         {/* VUE D'ENSEMBLE */}
         {activeTab === 'overview' && stats && (
           <View style={styles.section}>
-            {/* KPIs */}
+            {/* KPIs MODERNES */}
             <Text style={styles.sectionTitle}>📊 Statistiques Globales</Text>
             <View style={styles.kpisGrid}>
-              <View style={[styles.kpiCard, { backgroundColor: '#34C759' }]}>
+              <LinearGradient
+                colors={['#10d98c', '#0fd483']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>💰</Text>
                 <Text style={styles.kpiValue}>
                   {(stats.totalRevenue / 1000).toFixed(0)}K
                 </Text>
-                <Text style={styles.kpiLabel}>Revenus (FCFA)</Text>
-              </View>
+                <Text style={styles.kpiLabel}>Revenus FCFA</Text>
+              </LinearGradient>
 
-              <View style={[styles.kpiCard, { backgroundColor: '#007AFF' }]}>
+              <LinearGradient
+                colors={['#6C63FF', '#5A52E0']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>🏢</Text>
                 <Text style={styles.kpiValue}>{stats.totalStartups}</Text>
                 <Text style={styles.kpiLabel}>Startups</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={[styles.kpiCard, { backgroundColor: '#FF9500' }]}>
+              <LinearGradient
+                colors={['#FF6B9D', '#FF5E88']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>📦</Text>
                 <Text style={styles.kpiValue}>{stats.totalProducts}</Text>
                 <Text style={styles.kpiLabel}>Produits</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={[styles.kpiCard, { backgroundColor: '#AF52DE' }]}>
+              <LinearGradient
+                colors={['#FFA94D', '#FF9A3B']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>🛒</Text>
                 <Text style={styles.kpiValue}>{stats.totalOrders}</Text>
                 <Text style={styles.kpiLabel}>Commandes</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={[styles.kpiCard, { backgroundColor: '#FF3B30' }]}>
+              <LinearGradient
+                colors={['#00D4FF', '#00C4EE']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>👥</Text>
                 <Text style={styles.kpiValue}>{stats.totalUsers}</Text>
                 <Text style={styles.kpiLabel}>Utilisateurs</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={[styles.kpiCard, { backgroundColor: '#5856D6' }]}>
+              <LinearGradient
+                colors={['#C471ED', '#B865E0']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>🎁</Text>
                 <Text style={styles.kpiValue}>{stats.totalPromos}</Text>
                 <Text style={styles.kpiLabel}>Codes Promo</Text>
-              </View>
+              </LinearGradient>
             </View>
 
             {/* Répartition Users */}
             <View style={styles.subsection}>
               <Text style={styles.subsectionTitle}>👥 Répartition Utilisateurs</Text>
-              <View style={styles.userStats}>
-                <View style={styles.userStatItem}>
+              <View style={styles.userStatsCard}>
+                <LinearGradient
+                  colors={['#6C63FF', '#5A52E0']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.userStatItem}
+                >
                   <Text style={styles.userStatValue}>{stats.clients}</Text>
                   <Text style={styles.userStatLabel}>Clients</Text>
-                </View>
-                <View style={styles.userStatItem}>
+                </LinearGradient>
+                <LinearGradient
+                  colors={['#10d98c', '#0fd483']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.userStatItem}
+                >
                   <Text style={styles.userStatValue}>{stats.startupUsers}</Text>
                   <Text style={styles.userStatLabel}>Startups</Text>
-                </View>
-                <View style={styles.userStatItem}>
+                </LinearGradient>
+                <LinearGradient
+                  colors={['#FFA94D', '#FF9A3B']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.userStatItem}
+                >
                   <Text style={styles.userStatValue}>{stats.admins}</Text>
                   <Text style={styles.userStatLabel}>Admins</Text>
-                </View>
+                </LinearGradient>
               </View>
             </View>
 
             {/* Actions Rapides */}
-            // REMPLACE la section "Actions Rapides" (ligne ~460-490) par CECI:
+            <View style={styles.subsection}>
+              <Text style={styles.subsectionTitle}>⚡ Actions Rapides</Text>
+              <View style={styles.actionsGrid}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AdminCreateStartup')}
+                >
+                  <LinearGradient
+                    colors={['#10d98c', '#0fd483']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>➕</Text>
+                    <Text style={styles.actionText}>Créer Startup</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-{/* Actions Rapides */}
-<View style={styles.subsection}>
-  <Text style={styles.subsectionTitle}>⚡ Actions Rapides</Text>
-  <View style={styles.actionsGrid}>
-    <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#007AFF' }]}
-      onPress={() => {
-        setActiveTab('startups');
-        loadTabData('startups');
-      }}
-    >
-      <Text style={styles.actionIcon}>🏢</Text>
-      <Text style={styles.actionText}>Gérer Startups</Text>
-    </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowInviteModal(true)}
+                >
+                  <LinearGradient
+                    colors={['#FF6B9D', '#FF5E88']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>👑</Text>
+                    <Text style={styles.actionText}>Inviter Admin</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-    <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#FF9500' }]}
-      onPress={() => {
-        setActiveTab('products');
-        loadTabData('products');
-      }}
-    >
-      <Text style={styles.actionIcon}>📦</Text>
-      <Text style={styles.actionText}>Gérer Produits</Text>
-    </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setActiveTab('startups');
+                    loadTabData('startups');
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#6C63FF', '#5A52E0']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>🏢</Text>
+                    <Text style={styles.actionText}>Gérer Startups</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-    <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#34C759' }]}
-      onPress={() => {
-        setActiveTab('orders');
-        loadTabData('orders');
-      }}
-    >
-      <Text style={styles.actionIcon}>🛒</Text>
-      <Text style={styles.actionText}>Gérer Commandes</Text>
-    </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setActiveTab('products');
+                    loadTabData('products');
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#FF6B9D', '#FF5E88']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>📦</Text>
+                    <Text style={styles.actionText}>Gérer Produits</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-    <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#AF52DE' }]}
-      onPress={() => {
-        setActiveTab('users');
-        loadTabData('users');
-      }}
-    >
-      <Text style={styles.actionIcon}>👥</Text>
-      <Text style={styles.actionText}>Gérer Users</Text>
-    </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setActiveTab('orders');
+                    loadTabData('orders');
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#FFA94D', '#FF9A3B']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>🛒</Text>
+                    <Text style={styles.actionText}>Gérer Commandes</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-    {/* ✅ NOUVEAU: Bouton Catégories */}
-    <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#5856D6' }]}
-      onPress={() => navigation.navigate('AdminManageCategories')}
-    >
-      <Text style={styles.actionIcon}>📂</Text>
-      <Text style={styles.actionText}>Gérer Catégories</Text>
-    </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setActiveTab('users');
+                    loadTabData('users');
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#00D4FF', '#00C4EE']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>👥</Text>
+                    <Text style={styles.actionText}>Gérer Users</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-    <TouchableOpacity
-  style={[styles.actionCard, { backgroundColor: '#FFD700' }]}
-  onPress={() => navigation.navigate('AdminManageAmbassadorCodesScreen')}
->
-  <Text style={styles.actionIcon}>🎁</Text>
-  <Text style={styles.actionText}>Gérer Ambassadeurs</Text>
-</TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AdminManageCategories')}
+                >
+                  <LinearGradient
+                    colors={['#C471ED', '#B865E0']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>📂</Text>
+                    <Text style={styles.actionText}>Catégories</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AdminManageAmbassadorCodesScreen')}
+                >
+                  <LinearGradient
+                    colors={['#4ECDC4', '#44B8B1']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>🤝</Text>
+                    <Text style={styles.actionText}>Ambassadeurs</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AdminManagePromoCodes')}
+                >
+                  <LinearGradient
+                    colors={['#FC5C7D', '#EC4F6A']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>🎁</Text>
+                    <Text style={styles.actionText}>Codes Promo</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-    {/* ✅ NOUVEAU: Bouton Codes Promo */}
-    <TouchableOpacity
-      style={[styles.actionCard, { backgroundColor: '#FF2D55' }]}
-      onPress={() => navigation.navigate('AdminManagePromoCodes')}
-    >
-      <Text style={styles.actionIcon}>🎁</Text>
-      <Text style={styles.actionText}>Gérer Promos</Text>
-    </TouchableOpacity>
-  </View>
-</View>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AdminBDLOrders')}
+                >
+                  <LinearGradient
+                    colors={['#275471', '#f4a04b']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>🎨</Text>
+                    <Text style={styles.actionText}>BDL Studio</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         )}
 
@@ -533,16 +739,29 @@ export default function AdminDashboardScreen({ navigation }) {
               <Text style={styles.sectionTitle}>🏢 Gestion Startups</Text>
               <TouchableOpacity
                 style={styles.addButton}
-                onPress={() => navigation.navigate('AdminAddStartup')}
+                onPress={() => navigation.navigate('AdminCreateStartup')}
               >
-                <Text style={styles.addButtonText}>+ Ajouter</Text>
+                <LinearGradient
+                  colors={['#10d98c', '#0fd483']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.addButtonGradient}
+                >
+                  <Text style={styles.addButtonText}>➕ Créer Startup</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
-            
+
             {startups.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>🏢</Text>
                 <Text style={styles.emptyText}>Aucune startup</Text>
+                <TouchableOpacity
+                  style={styles.emptyButton}
+                  onPress={() => navigation.navigate('AdminCreateStartup')}
+                >
+                  <Text style={styles.emptyButtonText}>Créer la première startup</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               startups.map((startup) => (
@@ -551,36 +770,57 @@ export default function AdminDashboardScreen({ navigation }) {
                     <Text style={styles.itemName}>{startup.name}</Text>
                     <View style={[
                       styles.statusBadge,
-                      { backgroundColor: startup.active !== false ? '#34C759' : '#FF3B30' }
+                      { backgroundColor: startup.active !== false ? '#10d98c' : '#FF6B9D' }
                     ]}>
                       <Text style={styles.statusText}>
-                        {startup.active !== false ? 'Actif' : 'Inactif'}
+                        {startup.active !== false ? '✓ Actif' : '✗ Inactif'}
                       </Text>
                     </View>
                   </View>
                   <Text style={styles.itemDetail}>
-                    Propriétaire: {startup.ownerName || 'N/A'}
+                    👤 Propriétaire: {startup.ownerName || 'N/A'}
                   </Text>
                   <Text style={styles.itemDetail}>
-                    Email: {startup.ownerEmail || 'N/A'}
+                    ✉️ Email: {startup.ownerEmail || 'N/A'}
                   </Text>
                   <Text style={styles.itemDetail}>
-                    Produits: {startup.products || 0}
+                    📂 Catégorie: {startup.category || 'N/A'}
                   </Text>
+                  <Text style={styles.itemDetail}>
+                    📦 Produits: {startup.products || 0}
+                  </Text>
+                  {startup.accessCode && (
+                    <View style={styles.accessCodeBox}>
+                      <Text style={styles.accessCodeLabel}>🔑 Code d'accès:</Text>
+                      <Text style={styles.accessCodeValue}>{startup.accessCode}</Text>
+                    </View>
+                  )}
                   <View style={styles.itemActions}>
                     <TouchableOpacity
-                      style={[styles.itemButton, { backgroundColor: startup.active !== false ? '#FF9500' : '#34C759' }]}
                       onPress={() => handleToggleStartup(startup.id, startup.active !== false)}
                     >
-                      <Text style={styles.itemButtonText}>
-                        {startup.active !== false ? 'Désactiver' : 'Activer'}
-                      </Text>
+                      <LinearGradient
+                        colors={startup.active !== false ? ['#FFA94D', '#FF9A3B'] : ['#10d98c', '#0fd483']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.itemButton}
+                      >
+                        <Text style={styles.itemButtonText}>
+                          {startup.active !== false ? 'Désactiver' : 'Activer'}
+                        </Text>
+                      </LinearGradient>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.itemButton, { backgroundColor: '#FF3B30' }]}
                       onPress={() => handleDeleteStartup(startup.id, startup.name)}
                     >
-                      <Text style={styles.itemButtonText}>Supprimer</Text>
+                      <LinearGradient
+                        colors={['#FF6B9D', '#FF5E88']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.itemButton}
+                      >
+                        <Text style={styles.itemButtonText}>Supprimer</Text>
+                      </LinearGradient>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -605,36 +845,48 @@ export default function AdminDashboardScreen({ navigation }) {
                     <Text style={styles.itemName}>{product.name}</Text>
                     <View style={[
                       styles.statusBadge,
-                      { backgroundColor: product.available !== false ? '#34C759' : '#FF3B30' }
+                      { backgroundColor: product.available !== false ? '#10d98c' : '#FF6B9D' }
                     ]}>
                       <Text style={styles.statusText}>
-                        {product.available !== false ? 'Dispo' : 'Indispo'}
+                        {product.available !== false ? '✓ Dispo' : '✗ Indispo'}
                       </Text>
                     </View>
                   </View>
                   <Text style={styles.itemDetail}>
-                    Prix: {product.price?.toLocaleString('fr-FR')} FCFA
+                    💰 Prix: {product.price?.toLocaleString('fr-FR')} FCFA
                   </Text>
                   <Text style={styles.itemDetail}>
-                    Stock: {product.stock || 0}
+                    📊 Stock: {product.stock || 0}
                   </Text>
                   <Text style={styles.itemDetail}>
-                    Startup: {product.startupName || 'N/A'}
+                    🏢 Startup: {product.startupName || 'N/A'}
                   </Text>
                   <View style={styles.itemActions}>
                     <TouchableOpacity
-                      style={[styles.itemButton, { backgroundColor: product.available !== false ? '#FF9500' : '#34C759' }]}
                       onPress={() => handleToggleProduct(product.id, product.available !== false)}
                     >
-                      <Text style={styles.itemButtonText}>
-                        {product.available !== false ? 'Désactiver' : 'Activer'}
-                      </Text>
+                      <LinearGradient
+                        colors={product.available !== false ? ['#FFA94D', '#FF9A3B'] : ['#10d98c', '#0fd483']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.itemButton}
+                      >
+                        <Text style={styles.itemButtonText}>
+                          {product.available !== false ? 'Désactiver' : 'Activer'}
+                        </Text>
+                      </LinearGradient>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.itemButton, { backgroundColor: '#FF3B30' }]}
                       onPress={() => handleDeleteProduct(product.id, product.name)}
                     >
-                      <Text style={styles.itemButtonText}>Supprimer</Text>
+                      <LinearGradient
+                        colors={['#FF6B9D', '#FF5E88']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.itemButton}
+                      >
+                        <Text style={styles.itemButtonText}>Supprimer</Text>
+                      </LinearGradient>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -656,7 +908,7 @@ export default function AdminDashboardScreen({ navigation }) {
               orders.map((order) => (
                 <View key={order.id} style={styles.itemCard}>
                   <View style={styles.itemHeader}>
-                    <Text style={styles.itemName}>#{order.id.slice(0, 8)}</Text>
+                    <Text style={styles.itemName}>#{order.id.slice(0, 8).toUpperCase()}</Text>
                     <View style={[
                       styles.statusBadge,
                       { backgroundColor: getOrderStatusColor(order.status) }
@@ -667,13 +919,13 @@ export default function AdminDashboardScreen({ navigation }) {
                     </View>
                   </View>
                   <Text style={styles.itemDetail}>
-                    Total: {order.total?.toLocaleString('fr-FR')} FCFA
+                    💰 Total: {order.total?.toLocaleString('fr-FR')} FCFA
                   </Text>
                   <Text style={styles.itemDetail}>
-                    Articles: {order.items?.length || 0}
+                    📦 Articles: {order.items?.length || 0}
                   </Text>
                   <Text style={styles.itemDetail}>
-                    Date: {order.createdAt?.toDate?.()?.toLocaleDateString('fr-FR') || 'N/A'}
+                    📅 Date: {order.createdAt?.toDate?.()?.toLocaleDateString('fr-FR') || 'N/A'}
                   </Text>
                 </View>
               ))
@@ -684,7 +936,59 @@ export default function AdminDashboardScreen({ navigation }) {
         {/* GESTION USERS */}
         {activeTab === 'users' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>👥 Gestion Utilisateurs</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>👥 Gestion Utilisateurs</Text>
+              <TouchableOpacity
+                onPress={() => setShowInviteModal(true)}
+              >
+                <LinearGradient
+                  colors={['#FF6B9D', '#FF5E88']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.addButtonGradient}
+                >
+                  <Text style={styles.addButtonText}>👑 Inviter Admin</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            {/* Invitations Admin en attente */}
+            {adminInvitations.length > 0 && (
+              <View style={styles.invitationsSection}>
+                <Text style={styles.invitationsSectionTitle}>📨 Invitations Admin en attente</Text>
+                {adminInvitations.map((invitation) => (
+                  <View key={invitation.id} style={styles.invitationCard}>
+                    <View style={styles.itemHeader}>
+                      <Text style={styles.itemName}>{invitation.inviteeEmail}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: '#FFA94D' }]}>
+                        <Text style={styles.statusText}>En attente</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.itemDetail}>
+                      ⏰ Expire: {invitation.expiresAt?.toLocaleString('fr-FR') || 'N/A'}
+                    </Text>
+                    <Text style={styles.itemDetail}>
+                      📅 Créé: {invitation.createdAt?.toLocaleString('fr-FR') || 'N/A'}
+                    </Text>
+                    <View style={styles.itemActions}>
+                      <TouchableOpacity
+                        onPress={() => handleRevokeInvitation(invitation.id, invitation.inviteeEmail)}
+                      >
+                        <LinearGradient
+                          colors={['#FF6B9D', '#FF5E88']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.itemButton}
+                        >
+                          <Text style={styles.itemButtonText}>Révoquer</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
             {users.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>👥</Text>
@@ -705,26 +1009,38 @@ export default function AdminDashboardScreen({ navigation }) {
                     </View>
                   </View>
                   <Text style={styles.itemDetail}>
-                    Email: {user.email || 'N/A'}
+                    ✉️ Email: {user.email || 'N/A'}
                   </Text>
                   <Text style={styles.itemDetail}>
-                    Téléphone: {user.phone || 'N/A'}
+                    📱 Téléphone: {user.phone || 'N/A'}
                   </Text>
                   <View style={styles.itemActions}>
                     {user.role !== 'admin' && (
                       <TouchableOpacity
-                        style={[styles.itemButton, { backgroundColor: '#FFD700' }]}
                         onPress={() => handlePromoteUser(user.id, user.name)}
                       >
-                        <Text style={styles.itemButtonText}>👑 Promouvoir</Text>
+                        <LinearGradient
+                          colors={['#FFA94D', '#FF9A3B']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.itemButton}
+                        >
+                          <Text style={styles.itemButtonText}>👑 Promouvoir</Text>
+                        </LinearGradient>
                       </TouchableOpacity>
                     )}
                     {user.id !== auth.currentUser.uid && (
                       <TouchableOpacity
-                        style={[styles.itemButton, { backgroundColor: '#FF3B30' }]}
                         onPress={() => handleDeleteUser(user.id, user.name)}
                       >
-                        <Text style={styles.itemButtonText}>Supprimer</Text>
+                        <LinearGradient
+                          colors={['#FF6B9D', '#FF5E88']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.itemButton}
+                        >
+                          <Text style={styles.itemButtonText}>Supprimer</Text>
+                        </LinearGradient>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -737,19 +1053,21 @@ export default function AdminDashboardScreen({ navigation }) {
         {/* GESTION PROMOS */}
         {activeTab === 'promos' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🎁 Gestion Codes Promo</Text>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => navigation.navigate('CreatePromoCode')}
-            >
-              <Text style={styles.addButtonText}>+ Créer Code Promo Global</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>🎁 Gestion Codes Promo</Text>
               <TouchableOpacity
-  style={[styles.addButton, { backgroundColor: '#34C759', marginTop: 8 }]}
-  onPress={() => navigation.navigate('AdminManagePromoCodes')}
->
-  <Text style={styles.addButtonText}>📋 Gérer Tous les Codes</Text>
-</TouchableOpacity>
-            </TouchableOpacity>
+                onPress={() => navigation.navigate('AdminManagePromoCodes')}
+              >
+                <LinearGradient
+                  colors={['#C471ED', '#B865E0']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.addButtonGradient}
+                >
+                  <Text style={styles.addButtonText}>📋 Gérer</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
             {promoCodes.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>🎁</Text>
@@ -762,18 +1080,18 @@ export default function AdminDashboardScreen({ navigation }) {
                     <Text style={styles.itemName}>{promo.code}</Text>
                     <View style={[
                       styles.statusBadge,
-                      { backgroundColor: promo.active ? '#34C759' : '#FF3B30' }
+                      { backgroundColor: promo.active ? '#10d98c' : '#FF6B9D' }
                     ]}>
                       <Text style={styles.statusText}>
-                        {promo.active ? 'Actif' : 'Inactif'}
+                        {promo.active ? '✓ Actif' : '✗ Inactif'}
                       </Text>
                     </View>
                   </View>
                   <Text style={styles.itemDetail}>
-                    Type: {promo.type === 'percentage' ? `${promo.value}%` : `${promo.value} FCFA`}
+                    💵 Type: {promo.type === 'percentage' ? `${promo.value}%` : `${promo.value} FCFA`}
                   </Text>
                   <Text style={styles.itemDetail}>
-                    Utilisations: {promo.currentUses || 0} / {promo.maxUses || '∞'}
+                    📊 Utilisations: {promo.currentUses || 0} / {promo.maxUses || '∞'}
                   </Text>
                 </View>
               ))
@@ -785,9 +1103,8 @@ export default function AdminDashboardScreen({ navigation }) {
         {activeTab === 'ambassadors' && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>👥 Codes Ambassadeur</Text>
+              <Text style={styles.sectionTitle}>🤝 Codes Ambassadeur</Text>
               <TouchableOpacity
-                style={styles.addButton}
                 onPress={async () => {
                   try {
                     const result = await ambassadorService.generateInviteCode();
@@ -803,13 +1120,20 @@ export default function AdminDashboardScreen({ navigation }) {
                   }
                 }}
               >
-                <Text style={styles.addButtonText}>+ Nouveau Code</Text>
+                <LinearGradient
+                  colors={['#6C63FF', '#5A52E0']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.addButtonGradient}
+                >
+                  <Text style={styles.addButtonText}>+ Nouveau</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
 
             {ambassadorCodes.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>👥</Text>
+                <Text style={styles.emptyIcon}>🤝</Text>
                 <Text style={styles.emptyText}>Aucun code d'invitation</Text>
               </View>
             ) : (
@@ -819,7 +1143,7 @@ export default function AdminDashboardScreen({ navigation }) {
                     <Text style={styles.itemName}>{code.code}</Text>
                     <View style={[
                       styles.statusBadge,
-                      { backgroundColor: code.used ? '#FF3B30' : code.disabled ? '#8E8E93' : '#34C759' }
+                      { backgroundColor: code.used ? '#FF6B9D' : code.disabled ? '#A0A0A0' : '#10d98c' }
                     ]}>
                       <Text style={styles.statusText}>
                         {code.used ? 'Utilisé' : code.disabled ? 'Désactivé' : 'Disponible'}
@@ -829,32 +1153,44 @@ export default function AdminDashboardScreen({ navigation }) {
                   {code.used && (
                     <>
                       <Text style={styles.itemDetail}>
-                        Utilisé par: {code.usedByEmail || 'N/A'}
+                        👤 Utilisé par: {code.usedByEmail || 'N/A'}
                       </Text>
                       <Text style={styles.itemDetail}>
-                        Date: {code.usedAt ? new Date(code.usedAt.toDate()).toLocaleDateString() : 'N/A'}
+                        📅 Date: {code.usedAt ? new Date(code.usedAt.toDate()).toLocaleDateString() : 'N/A'}
                       </Text>
                     </>
                   )}
                   <Text style={styles.itemDetail}>
-                    Créé le: {new Date(code.createdAt.toDate()).toLocaleDateString()}
+                    📅 Créé le: {new Date(code.createdAt.toDate()).toLocaleDateString()}
                   </Text>
                   <View style={styles.itemActions}>
                     {!code.used && (
                       <TouchableOpacity
-                        style={[styles.itemButton, { backgroundColor: code.disabled ? '#34C759' : '#FF9500' }]}
                         onPress={() => handleToggleInviteCode(code.id, code.code, code.disabled)}
                       >
-                        <Text style={styles.itemButtonText}>
-                          {code.disabled ? 'Activer' : 'Désactiver'}
-                        </Text>
+                        <LinearGradient
+                          colors={code.disabled ? ['#10d98c', '#0fd483'] : ['#FFA94D', '#FF9A3B']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.itemButton}
+                        >
+                          <Text style={styles.itemButtonText}>
+                            {code.disabled ? 'Activer' : 'Désactiver'}
+                          </Text>
+                        </LinearGradient>
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity
-                      style={[styles.itemButton, { backgroundColor: '#FF3B30' }]}
                       onPress={() => handleDeleteInviteCode(code.id, code.code)}
                     >
-                      <Text style={styles.itemButtonText}>Supprimer</Text>
+                      <LinearGradient
+                        colors={['#FF6B9D', '#FF5E88']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.itemButton}
+                      >
+                        <Text style={styles.itemButtonText}>Supprimer</Text>
+                      </LinearGradient>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -863,8 +1199,77 @@ export default function AdminDashboardScreen({ navigation }) {
           </View>
         )}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
       </ScrollView>
+
+      {/* MODAL INVITATION ADMIN */}
+      <Modal
+        visible={showInviteModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowInviteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <LinearGradient
+              colors={['#6C63FF', '#5A52E0']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.modalHeader}
+            >
+              <Text style={styles.modalTitle}>👑 Inviter un Administrateur</Text>
+            </LinearGradient>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.modalLabel}>Email du futur admin</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="admin@example.com"
+                value={inviteEmail}
+                onChangeText={setInviteEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+
+              <Text style={styles.modalInfo}>
+                Un code d'invitation unique sera généré pour cette adresse email.
+                Le code expirera dans 24 heures et ne pourra être utilisé qu'une seule fois.
+              </Text>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalCancelButton}
+                  onPress={() => {
+                    setShowInviteModal(false);
+                    setInviteEmail('');
+                  }}
+                >
+                  <Text style={styles.modalCancelText}>Annuler</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleCreateAdminInvitation}
+                  disabled={creatingInvite}
+                >
+                  <LinearGradient
+                    colors={creatingInvite ? ['#A0A0A0', '#888888'] : ['#10d98c', '#0fd483']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.modalConfirmButton}
+                  >
+                    {creatingInvite ? (
+                      <ActivityIndicator color="white" size="small" />
+                    ) : (
+                      <Text style={styles.modalConfirmText}>Créer Invitation</Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -872,13 +1277,13 @@ export default function AdminDashboardScreen({ navigation }) {
 // HELPERS
 const getOrderStatusColor = (status) => {
   const colors = {
-    pending: '#FF9500',
-    processing: '#007AFF',
-    shipped: '#5856D6',
-    delivered: '#34C759',
-    cancelled: '#FF3B30',
+    pending: '#FFA94D',
+    processing: '#6C63FF',
+    shipped: '#C471ED',
+    delivered: '#10d98c',
+    cancelled: '#FF6B9D',
   };
-  return colors[status] || '#8E8E93';
+  return colors[status] || '#A0A0A0';
 };
 
 const getOrderStatusLabel = (status) => {
@@ -894,11 +1299,11 @@ const getOrderStatusLabel = (status) => {
 
 const getRoleColor = (role) => {
   const colors = {
-    admin: '#FFD700',
-    startup: '#007AFF',
-    client: '#34C759',
+    admin: '#FFA94D',
+    startup: '#6C63FF',
+    client: '#10d98c',
   };
-  return colors[role] || '#8E8E93';
+  return colors[role] || '#A0A0A0';
 };
 
 const getRoleLabel = (role) => {
@@ -911,61 +1316,464 @@ const getRoleLabel = (role) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F2F7' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 16, fontSize: 15, color: '#8E8E93' },
-  
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFD700', padding: 20 },
-  headerLeft: { flexDirection: 'row', alignItems: 'center' },
-  headerIcon: { fontSize: 32, marginRight: 12 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#000' },
-  headerSubtitle: { fontSize: 12, color: '#000', opacity: 0.7 },
-  logoutButton: { width: 40, height: 40, backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  logoutIcon: { fontSize: 20 },
-  
-  content: { flex: 1 },
-  tabsContainer: { backgroundColor: 'white', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#E5E5EA' },
-  tab: { paddingHorizontal: 16, paddingVertical: 8, marginRight: 8, borderRadius: 8 },
-  activeTab: { backgroundColor: '#007AFF' },
-  tabText: { fontSize: 13, fontWeight: '600', color: '#8E8E93' },
-  activeTabText: { color: 'white' },
-  
-  section: { padding: 16 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#000' },
-  
-  kpisGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
-  kpiCard: { width: (width - 44) / 2, borderRadius: 16, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
-  kpiIcon: { fontSize: 32, marginBottom: 8 },
-  kpiValue: { fontSize: 28, fontWeight: 'bold', color: 'white', marginBottom: 4 },
-  kpiLabel: { fontSize: 12, color: 'white', textAlign: 'center', opacity: 0.9 },
-  
-  subsection: { marginBottom: 24 },
-  subsectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#000', marginBottom: 12 },
-  userStats: { flexDirection: 'row', backgroundColor: 'white', borderRadius: 12, padding: 16, gap: 16 },
-  userStatItem: { flex: 1, alignItems: 'center' },
-  userStatValue: { fontSize: 24, fontWeight: 'bold', color: '#007AFF', marginBottom: 4 },
-  userStatLabel: { fontSize: 12, color: '#8E8E93' },
-  
-  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  actionCard: { width: (width - 44) / 2, borderRadius: 12, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 3 },
-  actionIcon: { fontSize: 32, color: 'white', marginBottom: 8 },
-  actionText: { fontSize: 14, fontWeight: '600', color: 'white', textAlign: 'center' },
-  
-  itemCard: { backgroundColor: 'white', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
-  itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  itemName: { fontSize: 16, fontWeight: 'bold', color: '#000', flex: 1 },
-  statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
-  statusText: { fontSize: 11, fontWeight: 'bold', color: 'white' },
-  itemDetail: { fontSize: 13, color: '#8E8E93', marginBottom: 4 },
-  itemActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  itemButton: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  itemButtonText: { fontSize: 13, fontWeight: '600', color: 'white' },
-  
-  addButton: { backgroundColor: '#007AFF', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  addButtonText: { color: 'white', fontSize: 14, fontWeight: '600' },
-  
-  emptyState: { backgroundColor: 'white', borderRadius: 16, padding: 40, alignItems: 'center' },
-  emptyIcon: { fontSize: 64, marginBottom: 16 },
-  emptyText: { fontSize: 16, fontWeight: 'bold', color: '#8E8E93' },
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fc',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fc',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 15,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+
+  // HEADER
+  header: {
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    shadowColor: '#6C63FF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    letterSpacing: 0.5,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  logoutButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutIcon: {
+    fontSize: 22,
+    color: 'white',
+  },
+
+  // CONTENT
+  content: {
+    flex: 1,
+  },
+
+  // TABS
+  tabsContainer: {
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  tabsContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 10,
+  },
+  tab: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+  },
+  activeTab: {
+    backgroundColor: '#6C63FF',
+    shadowColor: '#6C63FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  activeTabText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+
+  // SECTION
+  section: {
+    padding: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 20,
+  },
+
+  // KPIs
+  kpisGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    marginBottom: 28,
+  },
+  kpiCard: {
+    width: (width - 56) / 2,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  kpiIcon: {
+    fontSize: 36,
+    marginBottom: 12,
+  },
+  kpiValue: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 6,
+  },
+  kpiLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+
+  // SUBSECTION
+  subsection: {
+    marginBottom: 28,
+  },
+  subsectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#334155',
+    marginBottom: 16,
+  },
+  userStatsCard: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  userStatItem: {
+    flex: 1,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  userStatValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 6,
+  },
+  userStatLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '600',
+  },
+
+  // ACTIONS GRID
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  actionCard: {
+    width: (width - 56) / 2,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 110,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  actionIcon: {
+    fontSize: 32,
+    marginBottom: 10,
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+  },
+
+  // ITEM CARD
+  itemCard: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  itemName: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  itemDetail: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  itemActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  itemButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  itemButtonText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+
+  // ACCESS CODE BOX
+  accessCodeBox: {
+    backgroundColor: '#F0F8FF',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    borderStyle: 'dashed',
+  },
+  accessCodeLabel: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  accessCodeValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    letterSpacing: 2,
+  },
+
+  // ADD BUTTON
+  addButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  addButtonGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  addButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+
+  // EMPTY STATE
+  emptyState: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 48,
+    alignItems: 'center',
+  },
+  emptyIcon: {
+    fontSize: 72,
+    marginBottom: 20,
+    opacity: 0.6,
+  },
+  emptyText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#94a3b8',
+    marginBottom: 16,
+  },
+  emptyButton: {
+    backgroundColor: '#10d98c',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  emptyButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+
+  // INVITATIONS SECTION
+  invitationsSection: {
+    marginBottom: 24,
+  },
+  invitationsSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FF6B9D',
+    marginBottom: 12,
+  },
+  invitationCard: {
+    backgroundColor: '#FFF5F7',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#FF6B9D',
+    borderStyle: 'dashed',
+  },
+
+  // MODAL
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    width: '100%',
+    maxWidth: 400,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  modalBody: {
+    padding: 24,
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 8,
+  },
+  modalInput: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: '#1e293b',
+    marginBottom: 16,
+  },
+  modalInfo: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 20,
+    marginBottom: 24,
+    backgroundColor: '#f8fafc',
+    padding: 12,
+    borderRadius: 8,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  modalConfirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalConfirmText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: 'white',
+  },
 });
