@@ -226,16 +226,21 @@ export const subscriptionService = {
         updatedAt: now,
       });
 
-      // DÉSACTIVER la startup
-      await updateDoc(doc(db, 'startups', subscription.startupId), {
-        subscriptionStatus: 'pending_payment',
-        subscriptionPlan: subscription.selectedPlanId,
-        subscriptionBadge: subscription.selectedFeatures.badge,
-        isActive: false, // PAGE DÉSACTIVÉE
-        updatedAt: now,
-      });
-
-      console.log('🔴 Startup désactivée → en attente de paiement');
+      // Vérifier si la startup existe avant de la mettre à jour
+      const startupDoc = await getDoc(doc(db, 'startups', subscription.startupId));
+      if (startupDoc.exists()) {
+        // DÉSACTIVER la startup
+        await updateDoc(doc(db, 'startups', subscription.startupId), {
+          subscriptionStatus: 'pending_payment',
+          subscriptionPlan: subscription.selectedPlanId,
+          subscriptionBadge: subscription.selectedFeatures.badge,
+          isActive: false, // PAGE DÉSACTIVÉE
+          updatedAt: now,
+        });
+        console.log('🔴 Startup désactivée → en attente de paiement');
+      } else {
+        console.warn('⚠️ Essai terminé mais startup introuvable:', subscription.startupId);
+      }
 
       return { success: true };
     } catch (error) {
@@ -262,14 +267,19 @@ export const subscriptionService = {
         updatedAt: now,
       });
 
-      // DÉSACTIVER la startup
-      await updateDoc(doc(db, 'startups', subscription.startupId), {
-        subscriptionStatus: 'suspended',
-        isActive: false, // PAGE DÉSACTIVÉE
-        updatedAt: now,
-      });
-
-      console.log('🔴 Startup suspendue pour non-paiement');
+      // Vérifier si la startup existe avant de la mettre à jour
+      const startupDoc = await getDoc(doc(db, 'startups', subscription.startupId));
+      if (startupDoc.exists()) {
+        // DÉSACTIVER la startup
+        await updateDoc(doc(db, 'startups', subscription.startupId), {
+          subscriptionStatus: 'suspended',
+          isActive: false, // PAGE DÉSACTIVÉE
+          updatedAt: now,
+        });
+        console.log('🔴 Startup suspendue pour non-paiement');
+      } else {
+        console.warn('⚠️ Abonnement suspendu mais startup introuvable:', subscription.startupId);
+      }
 
       return { success: true };
     } catch (error) {
@@ -303,14 +313,19 @@ export const subscriptionService = {
         updatedAt: now,
       });
 
-      // ACTIVER la startup
-      await updateDoc(doc(db, 'startups', subscription.startupId), {
-        subscriptionStatus: 'active',
-        isActive: true, // PAGE ACTIVÉE
-        updatedAt: now,
-      });
-
-      console.log('✅ Startup activée par admin:', activatedByAdminId);
+      // Vérifier si la startup existe avant de la mettre à jour
+      const startupDoc = await getDoc(doc(db, 'startups', subscription.startupId));
+      if (startupDoc.exists()) {
+        // ACTIVER la startup
+        await updateDoc(doc(db, 'startups', subscription.startupId), {
+          subscriptionStatus: 'active',
+          isActive: true, // PAGE ACTIVÉE
+          updatedAt: now,
+        });
+        console.log('✅ Startup activée par admin:', activatedByAdminId);
+      } else {
+        console.warn('⚠️ Abonnement activé mais startup introuvable:', subscription.startupId);
+      }
 
       return { success: true };
     } catch (error) {
@@ -512,11 +527,17 @@ export const subscriptionService = {
         updatedAt: now,
       });
 
-      await updateDoc(doc(db, 'startups', subscription.startupId), {
-        subscriptionStatus: 'cancelled',
-        isActive: false,
-        updatedAt: now,
-      });
+      // Vérifier si la startup existe avant de la mettre à jour
+      const startupDoc = await getDoc(doc(db, 'startups', subscription.startupId));
+      if (startupDoc.exists()) {
+        await updateDoc(doc(db, 'startups', subscription.startupId), {
+          subscriptionStatus: 'cancelled',
+          isActive: false,
+          updatedAt: now,
+        });
+      } else {
+        console.warn('⚠️ Abonnement annulé mais startup introuvable:', subscription.startupId);
+      }
 
       return { success: true };
     } catch (error) {
@@ -564,11 +585,17 @@ export const subscriptionService = {
           updatedAt: now,
         });
 
-        await updateDoc(doc(db, 'startups', subscription.startupId), {
-          subscriptionPlan: newPlan.id,
-          subscriptionBadge: newPlan.features.badge,
-          updatedAt: now,
-        });
+        // Vérifier si la startup existe avant de la mettre à jour
+        const startupDoc = await getDoc(doc(db, 'startups', subscription.startupId));
+        if (startupDoc.exists()) {
+          await updateDoc(doc(db, 'startups', subscription.startupId), {
+            subscriptionPlan: newPlan.id,
+            subscriptionBadge: newPlan.features.badge,
+            updatedAt: now,
+          });
+        } else {
+          console.warn('⚠️ Plan changé mais startup introuvable:', subscription.startupId);
+        }
       }
 
       return { success: true };
