@@ -16,6 +16,7 @@ import AdminDashboardScreen from './screens/AdminDashboardScreen';
 import AdminManageAmbassadorCodesScreen from './screens/AdminManageAmbassadorCodesScreen';
 import AdminManageCategoriesScreen from './screens/AdminManageCategoriesScreen';
 import AdminManagePromoCodesScreen from './screens/AdminManagePromoCodesScreen';
+import AdminSubscriptionsScreen from './screens/AdminSubscriptionsScreen';
 import AmbassadorDashboardScreen from './screens/AmbassadorDashboardScreen';
 import BDLAdminDashboardScreen from './screens/BDLAdminDashboardScreen';
 import BDLAdminOrderDetailScreen from './screens/BDLAdminOrderDetailScreen';
@@ -684,9 +685,16 @@ const saveCartToStorage = async () => {
 />
 
 {/* ✅ GESTION CATÉGORIES */}
-<Stack.Screen 
-  name="AdminManageCategories" 
+<Stack.Screen
+  name="AdminManageCategories"
   component={AdminManageCategoriesScreen}
+  options={{ headerShown: false }}
+/>
+
+{/* ✅ GESTION ABONNEMENTS */}
+<Stack.Screen
+  name="AdminSubscriptions"
+  component={AdminSubscriptionsScreen}
   options={{ headerShown: false }}
 />
 
