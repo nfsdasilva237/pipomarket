@@ -11,9 +11,9 @@ import {
     updateDoc,
     where
 } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { db, storage } from '../config/firebase';
+import { db } from '../config/firebase';
 import { notificationService } from './notificationService';
+import { uploadChatImage } from './cloudinaryService';
 
 export const chatService = {
   // Créer ou récupérer une conversation
@@ -99,15 +99,10 @@ export const chatService = {
       const conversationData = conversationDoc.data();
       const recipient = conversationData.participants.find(id => id !== senderId);
 
-      // Si c'est une image, l'uploader d'abord
+      // Si c'est une image, l'uploader d'abord via Cloudinary
       let imageUrl = null;
       if (type === 'image' && imageUri) {
-        const response = await fetch(imageUri);
-        const blob = await response.blob();
-        const imageName = `chat/${conversationId}/${Date.now()}.jpg`;
-        const imageRef = ref(storage, imageName);
-        await uploadBytes(imageRef, blob);
-        imageUrl = await getDownloadURL(imageRef);
+        imageUrl = await uploadChatImage(imageUri, conversationId);
       }
 
       // Créer le message
