@@ -170,6 +170,24 @@ export const subscriptionService = {
         ...subscriptionDoc.data(),
       };
 
+      // 🔧 Réparer les fonctionnalités manquantes si nécessaire
+      if (!subscription.currentFeatures) {
+        console.warn('⚠️ Réparation de l\'abonnement:', subscription.id);
+        const fallbackFeatures = subscription.selectedFeatures || SUBSCRIPTION_PLANS.PREMIUM.features;
+        subscription.currentFeatures = fallbackFeatures;
+
+        // Réparer le document dans la base de données
+        try {
+          await updateDoc(doc(db, 'subscriptions', subscription.id), {
+            currentFeatures: fallbackFeatures,
+            updatedAt: new Date(),
+          });
+          console.log('✅ Abonnement réparé:', subscription.id);
+        } catch (repairError) {
+          console.error('Erreur réparation abonnement:', repairError);
+        }
+      }
+
       const now = new Date();
 
       // 🔍 Vérifier si la période d'essai est terminée
@@ -396,6 +414,12 @@ export const subscriptionService = {
         return { allowed: false, reason: 'Abonnement inactif - paiement requis' };
       }
 
+      // Vérifier que les fonctionnalités sont définies (normalement réparé dans getSubscription)
+      if (!subscription.currentFeatures) {
+        console.error('currentFeatures manquant dans canAddProduct pour:', subscription.id);
+        return { allowed: false, reason: 'Erreur de configuration abonnement' };
+      }
+
       // Compter produits actuels
       const productsQ = query(
         collection(db, 'products'),
@@ -439,6 +463,12 @@ export const subscriptionService = {
 
       if (!subscription.isActive) {
         return { allowed: false, reason: 'Abonnement inactif - paiement requis' };
+      }
+
+      // Vérifier que les fonctionnalités sont définies (normalement réparé dans getSubscription)
+      if (!subscription.currentFeatures) {
+        console.error('currentFeatures manquant dans canAcceptOrder pour:', subscription.id);
+        return { allowed: false, reason: 'Erreur de configuration abonnement' };
       }
 
       // Compter commandes du mois actuel
@@ -616,11 +646,23 @@ export const subscriptionService = {
 
       const { subscription } = subResult;
 
-      // Vérifier que les fonctionnalités sont définies
+      // Vérifier et réparer les fonctionnalités manquantes
       if (!subscription.currentFeatures) {
-        console.error('currentFeatures non défini pour l\'abonnement:', subscription.id);
+        console.warn('⚠️ Réparation de l\'abonnement:', subscription.id);
         // Utiliser selectedFeatures comme fallback ou PREMIUM par défaut
-        subscription.currentFeatures = subscription.selectedFeatures || SUBSCRIPTION_PLANS.PREMIUM.features;
+        const fallbackFeatures = subscription.selectedFeatures || SUBSCRIPTION_PLANS.PREMIUM.features;
+        subscription.currentFeatures = fallbackFeatures;
+
+        // Réparer le document dans la base de données
+        try {
+          await updateDoc(doc(db, 'subscriptions', subscription.id), {
+            currentFeatures: fallbackFeatures,
+            updatedAt: new Date(),
+          });
+          console.log('✅ Abonnement réparé:', subscription.id);
+        } catch (repairError) {
+          console.error('Erreur réparation abonnement:', repairError);
+        }
       }
 
       // Compter produits
