@@ -14,7 +14,7 @@ import { auth } from '../config/firebase';
 import { SUBSCRIPTION_PLANS, subscriptionService } from '../utils/subscriptionService';
 
 export default function ManageSubscriptionScreen({ navigation, route }) {
-  const startupId = route.params?.startupId || auth.currentUser?.uid;
+  const startupId = route.params?.startupId;
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState(null);
   const [stats, setStats] = useState(null);
@@ -25,6 +25,16 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
 
   const loadSubscription = async () => {
     try {
+      if (!startupId) {
+        Alert.alert(
+          'Erreur',
+          'Impossible de charger l\'abonnement. Veuillez créer une startup d\'abord.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+        setLoading(false);
+        return;
+      }
+
       const [subResult, statsResult] = await Promise.all([
         subscriptionService.getSubscription(startupId),
         subscriptionService.getSubscriptionStats(startupId),

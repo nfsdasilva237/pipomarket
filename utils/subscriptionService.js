@@ -616,6 +616,13 @@ export const subscriptionService = {
 
       const { subscription } = subResult;
 
+      // Vérifier que les fonctionnalités sont définies
+      if (!subscription.currentFeatures) {
+        console.error('currentFeatures non défini pour l\'abonnement:', subscription.id);
+        // Utiliser selectedFeatures comme fallback ou PREMIUM par défaut
+        subscription.currentFeatures = subscription.selectedFeatures || SUBSCRIPTION_PLANS.PREMIUM.features;
+      }
+
       // Compter produits
       const productsQ = query(
         collection(db, 'products'),
@@ -625,7 +632,7 @@ export const subscriptionService = {
       const productsCount = productsSnapshot.size;
 
       // Compter commandes du mois
-      const periodStart = subscription.currentPeriodStart.toDate ? subscription.currentPeriodStart.toDate() : new Date(subscription.currentPeriodStart);
+      const periodStart = subscription.currentPeriodStart?.toDate ? subscription.currentPeriodStart.toDate() : new Date(subscription.currentPeriodStart);
       const ordersQ = query(
         collection(db, 'orders'),
         where('startupId', '==', startupId),
@@ -636,7 +643,7 @@ export const subscriptionService = {
 
       // Calculer jours restants
       const now = new Date();
-      const endDate = subscription.currentPeriodEnd.toDate ? subscription.currentPeriodEnd.toDate() : new Date(subscription.currentPeriodEnd);
+      const endDate = subscription.currentPeriodEnd?.toDate ? subscription.currentPeriodEnd.toDate() : new Date(subscription.currentPeriodEnd);
       const daysRemaining = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
 
       return {

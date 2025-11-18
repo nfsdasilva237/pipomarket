@@ -406,7 +406,7 @@ export default function StartupDashboardScreen({ route, navigation }) {
                   <Text style={styles.sectionTitle}>📊 Utilisation de votre plan</Text>
                   <TouchableOpacity
                     style={styles.planBadge}
-                    onPress={() => navigation.navigate('ManageSubscription')}
+                    onPress={() => navigation.navigate('ManageSubscription', { startupId })}
                   >
                     <Text style={styles.planBadgeText}>
                       {subscriptionStats.planName || 'STARTER'}
@@ -466,7 +466,7 @@ export default function StartupDashboardScreen({ route, navigation }) {
                 {subscriptionStats.plan !== 'premium' && (
                   <TouchableOpacity
                     style={styles.upgradeButton}
-                    onPress={() => navigation.navigate('ManageSubscription')}
+                    onPress={() => navigation.navigate('ManageSubscription', { startupId })}
                   >
                     <Text style={styles.upgradeButtonIcon}>⬆️</Text>
                     <Text style={styles.upgradeButtonText}>Améliorer mon plan</Text>
@@ -599,7 +599,7 @@ export default function StartupDashboardScreen({ route, navigation }) {
 
                 <TouchableOpacity
                   style={[styles.actionCard, { backgroundColor: '#AF52DE' }]}
-                  onPress={() => navigation.navigate('ManageSubscription')}
+                  onPress={() => navigation.navigate('ManageSubscription', { startupId })}
                 >
                   <Text style={styles.actionIcon}>💎</Text>
                   <Text style={styles.actionText}>Mon Abonnement</Text>

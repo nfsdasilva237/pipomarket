@@ -122,7 +122,7 @@ export default function AddProductScreen({ navigation, route }) {
           { text: 'Plus tard', style: 'cancel' },
           {
             text: '⬆️ Améliorer mon plan',
-            onPress: () => navigation.navigate('ManageSubscription'),
+            onPress: () => navigation.navigate('ManageSubscription', { startupId }),
           },
         ]
       );

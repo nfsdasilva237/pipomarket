@@ -14,14 +14,24 @@ import { auth } from '../config/firebase';
 import { SUBSCRIPTION_PLANS, subscriptionService } from '../utils/subscriptionService';
 
 export default function SubscriptionScreen({ navigation, route }) {
-  const startupId = route.params?.startupId || auth.currentUser?.uid;
+  const startupId = route.params?.startupId;
   const [selectedPlan, setSelectedPlan] = useState('PRO');
   const [loading, setLoading] = useState(false);
 
   const handleSubscribe = async (planId) => {
   setLoading(true);
-  
+
   try {
+    if (!startupId) {
+      Alert.alert(
+        'Erreur',
+        'Impossible de créer un abonnement. Veuillez créer une startup d\'abord.',
+        [{ text: 'OK' }]
+      );
+      setLoading(false);
+      return;
+    }
+
     // Vérifier si abonnement existe
     const subResult = await subscriptionService.getSubscription(startupId);
     

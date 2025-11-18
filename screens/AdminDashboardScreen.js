@@ -55,6 +55,14 @@ export default function AdminDashboardScreen({ navigation }) {
 
   const loadDashboard = async () => {
     try {
+      // Vérifier que l'utilisateur est authentifié
+      if (!auth.currentUser || auth.currentUser.isAnonymous) {
+        Alert.alert('Accès refusé', 'Vous devez être connecté pour accéder au dashboard admin', [
+          { text: 'OK', onPress: () => navigation.replace('Home') }
+        ]);
+        return;
+      }
+
       const isAdmin = await adminService.isAdmin(auth.currentUser.uid);
       if (!isAdmin) {
         Alert.alert('Accès refusé', 'Vous n\'êtes pas administrateur', [

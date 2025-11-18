@@ -215,6 +215,9 @@ export const adminService = {
   // VÉRIFIER SI USER EST ADMIN
   isAdmin: async (userId) => {
     try {
+      if (!userId) {
+        return false;
+      }
       const userDoc = await getDoc(doc(db, 'users', userId));
       return userDoc.exists() && userDoc.data().role === 'admin';
     } catch (error) {
@@ -263,6 +266,22 @@ export const adminService = {
   // STATISTIQUES GLOBALES
   getGlobalStats: async () => {
     try {
+      // Vérifier que l'utilisateur est authentifié
+      if (!auth.currentUser) {
+        console.error('Erreur stats globales: Utilisateur non authentifié');
+        return {
+          totalStartups: 0,
+          totalProducts: 0,
+          totalOrders: 0,
+          totalRevenue: 0,
+          totalUsers: 0,
+          clients: 0,
+          startupUsers: 0,
+          admins: 0,
+          totalPromos: 0,
+        };
+      }
+
       // Compter startups
       const startupsSnap = await getDocs(collection(db, 'startups'));
       const totalStartups = startupsSnap.size;
@@ -311,7 +330,18 @@ export const adminService = {
       };
     } catch (error) {
       console.error('Erreur stats globales:', error);
-      return null;
+      // Retourner des stats vides en cas d'erreur de permissions
+      return {
+        totalStartups: 0,
+        totalProducts: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        totalUsers: 0,
+        clients: 0,
+        startupUsers: 0,
+        admins: 0,
+        totalPromos: 0,
+      };
     }
   },
 
