@@ -64,9 +64,6 @@
       ]
     ],
     "extra": {
-      "eas": {
-        "projectId": "votre-project-id-eas-ici"
-      },
       "cloudinaryCloudName": "YOUR_CLOUDINARY_CLOUD_NAME",
       "cloudinaryUploadPreset": "YOUR_CLOUDINARY_UPLOAD_PRESET"
     }
