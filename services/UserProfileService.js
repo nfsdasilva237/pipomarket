@@ -10,6 +10,34 @@ class UserProfileService {
   }
 
   /**
+   * Convertit un timestamp Firestore en objet Date de manière sûre
+   */
+  safeToDate(timestamp) {
+    if (!timestamp) return new Date();
+
+    // Si c'est déjà un objet Date
+    if (timestamp instanceof Date) return timestamp;
+
+    // Si c'est un Timestamp Firestore avec la méthode toDate
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      return timestamp.toDate();
+    }
+
+    // Si c'est un nombre (timestamp en millisecondes)
+    if (typeof timestamp === 'number') {
+      return new Date(timestamp);
+    }
+
+    // Si c'est une chaîne de caractères
+    if (typeof timestamp === 'string') {
+      return new Date(timestamp);
+    }
+
+    // Par défaut, retourner la date actuelle
+    return new Date();
+  }
+
+  /**
    * Récupère le profil complet de l'utilisateur avec toutes ses interactions
    */
   async getUserProfile(userId = null) {
@@ -72,7 +100,7 @@ class UserProfileService {
       return ordersSnap.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        timestamp: doc.data().createdAt?.toDate() || new Date(doc.data().createdAt)
+        timestamp: this.safeToDate(doc.data().createdAt)
       }));
     } catch (error) {
       console.error('Erreur récupération commandes:', error);
@@ -91,7 +119,7 @@ class UserProfileService {
       return bdlSnap.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        timestamp: doc.data().createdAt?.toDate() || new Date(doc.data().createdAt)
+        timestamp: this.safeToDate(doc.data().createdAt)
       }));
     } catch (error) {
       console.error('Erreur récupération commandes BDL:', error);
@@ -138,7 +166,7 @@ class UserProfileService {
       return interactionsSnap.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate() || new Date(doc.data().timestamp)
+        timestamp: this.safeToDate(doc.data().timestamp || doc.data().createdAt)
       }));
     } catch (error) {
       console.error('Erreur récupération interactions:', error);
@@ -284,7 +312,7 @@ class UserProfileService {
     // Points pour l'activité récente (max 10)
     const recentActivity = [...orders, ...bdlOrders, ...interactions]
       .filter(item => {
-        const itemDate = item.timestamp || item.createdAt?.toDate?.() || new Date(item.createdAt);
+        const itemDate = this.safeToDate(item.timestamp || item.createdAt);
         return itemDate > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       }).length;
     score += Math.min(recentActivity * 2, 10);
@@ -452,7 +480,7 @@ class UserProfileService {
 
   getPreferredShoppingTime(orders, interactions) {
     const allEvents = [...orders, ...interactions];
-    const hours = allEvents.map(e => (e.timestamp || e.createdAt?.toDate?.() || new Date()).getHours());
+    const hours = allEvents.map(e => this.safeToDate(e.timestamp || e.createdAt).getHours());
 
     if (hours.length === 0) return null;
 
