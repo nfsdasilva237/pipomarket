@@ -266,8 +266,8 @@ export const adminService = {
   // STATISTIQUES GLOBALES
   getGlobalStats: async () => {
     try {
-      // Vérifier que l'utilisateur est authentifié
-      if (!auth.currentUser) {
+      // Vérifier que auth existe et que l'utilisateur est authentifié
+      if (!auth || !auth.currentUser) {
         console.error('Erreur stats globales: Utilisateur non authentifié');
         return {
           totalStartups: 0,
