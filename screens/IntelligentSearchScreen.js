@@ -12,22 +12,26 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { collection, getDocs, query } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import IntelligentSearchService from '../services/IntelligentSearch';
 
-export default function IntelligentSearchScreen({ navigation, allProducts = [] }) {
+export default function IntelligentSearchScreen({ navigation, route }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchMetadata, setSearchMetadata] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
-  
+  const [allProducts, setAllProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
   // Historique et tendances (à charger depuis AsyncStorage)
   const [recentSearches] = useState([
     'Gâteaux yaoundé',
     'Téléphone pas cher',
     'Chaussures sport',
   ]);
-  
+
   const [popularSearches] = useState([
     'Pâtisserie',
     'Téléphone',
@@ -36,18 +40,58 @@ export default function IntelligentSearchScreen({ navigation, allProducts = [] }
     'Ordinateur portable',
   ]);
 
+  // Charger tous les produits au montage
+  useEffect(() => {
+    loadAllProducts();
+  }, []);
+
+  const loadAllProducts = async () => {
+    try {
+      setLoadingProducts(true);
+      const productsQuery = query(collection(db, 'products'));
+      const querySnapshot = await getDocs(productsQuery);
+
+      const products = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data && data.name && data.available !== false) {
+          products.push({
+            id: doc.id,
+            ...data,
+          });
+        }
+      });
+
+      console.log('📦 Produits chargés pour recherche:', products.length);
+      setAllProducts(products);
+    } catch (error) {
+      console.error('Erreur chargement produits:', error);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
-    
+
+    if (allProducts.length === 0) {
+      console.warn('Aucun produit disponible pour la recherche');
+      return;
+    }
+
     setIsSearching(true);
     setShowSuggestions(false);
-    
+
     try {
+      console.log('🔍 Recherche:', searchQuery, 'sur', allProducts.length, 'produits');
+
       const { results, metadata } = await IntelligentSearchService.intelligentSearch(
         searchQuery,
         allProducts
       );
-      
+
+      console.log('✅ Résultats:', results.length);
+
       setSearchResults(results);
       setSearchMetadata(metadata);
     } catch (error) {
@@ -61,7 +105,9 @@ export default function IntelligentSearchScreen({ navigation, allProducts = [] }
     setSearchQuery(suggestion);
     setShowSuggestions(false);
     // Déclencher la recherche automatiquement
-    setTimeout(() => handleSearch(), 100);
+    setTimeout(() => {
+      handleSearch();
+    }, 100);
   };
 
   const suggestions = IntelligentSearchService.getSearchSuggestions(
@@ -70,57 +116,79 @@ export default function IntelligentSearchScreen({ navigation, allProducts = [] }
     popularSearches
   );
 
-  const renderProduct = ({ item }) => (
-    <TouchableOpacity
-      style={styles.productCard}
-      onPress={() => navigation.navigate('ProductDetail', { product: item })}
-    >
-      {/* IMAGE */}
-      <View style={styles.productImageContainer}>
-        {item.image ? (
-          <Image source={{ uri: item.image }} style={styles.productImage} />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <Text style={styles.placeholderText}>📦</Text>
-          </View>
-        )}
-        
-        {/* Score de pertinence (dev mode) */}
-        {item.relevanceScore && (
-          <View style={styles.scoreBadge}>
-            <Text style={styles.scoreText}>{item.relevanceScore}</Text>
-          </View>
-        )}
-      </View>
+  const renderProduct = ({ item }) => {
+    const isImageUrl = item.image && typeof item.image === 'string' && (
+      item.image.startsWith('http://') ||
+      item.image.startsWith('https://') ||
+      item.image.startsWith('file://')
+    );
 
-      {/* INFO */}
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={2}>
-          {item.name}
-        </Text>
-        
-        <Text style={styles.startupName} numberOfLines={1}>
-          {item.startupName || 'PipoMarket'}
-        </Text>
-        
-        <View style={styles.productBottom}>
-          <Text style={styles.productPrice}>
-            {item.price?.toLocaleString('fr-FR')} FCFA
-          </Text>
-          
-          {item.rating && (
-            <View style={styles.rating}>
-              <Text style={styles.ratingText}>⭐ {item.rating}</Text>
+    return (
+      <TouchableOpacity
+        style={styles.productCard}
+        onPress={() => navigation.navigate('ProductDetail', {
+          productId: item.id,
+          productName: item.name,
+        })}
+      >
+        {/* IMAGE */}
+        <View style={styles.productImageContainer}>
+          {isImageUrl ? (
+            <Image source={{ uri: item.image }} style={styles.productImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <Text style={styles.placeholderText}>{item.image || '📦'}</Text>
+            </View>
+          )}
+
+          {/* Score de pertinence */}
+          {item.relevanceScore > 0 && (
+            <View style={styles.scoreBadge}>
+              <Text style={styles.scoreText}>{item.relevanceScore}</Text>
             </View>
           )}
         </View>
-        
-        {item.city && (
-          <Text style={styles.cityText}>📍 {item.city}</Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+
+        {/* INFO */}
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={2}>
+            {item.name}
+          </Text>
+
+          <Text style={styles.startupName} numberOfLines={1}>
+            {item.startupName || 'PipoMarket'}
+          </Text>
+
+          <View style={styles.productBottom}>
+            <Text style={styles.productPrice}>
+              {item.price?.toLocaleString('fr-FR')} FCFA
+            </Text>
+
+            {item.rating && (
+              <View style={styles.rating}>
+                <Text style={styles.ratingText}>⭐ {item.rating}</Text>
+              </View>
+            )}
+          </View>
+
+          {item.city && (
+            <Text style={styles.cityText}>📍 {item.city}</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  if (loadingProducts) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Chargement des produits...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -129,7 +197,7 @@ export default function IntelligentSearchScreen({ navigation, allProducts = [] }
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>←</Text>
         </TouchableOpacity>
-        
+
         <View style={styles.searchBarContainer}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
@@ -224,7 +292,7 @@ export default function IntelligentSearchScreen({ navigation, allProducts = [] }
           <Text style={styles.resultsCount}>
             {searchMetadata.totalResults} résultat{searchMetadata.totalResults > 1 ? 's' : ''}
           </Text>
-          
+
           {searchMetadata.detectedCategory && (
             <View style={styles.detectedBadge}>
               <Text style={styles.detectedText}>
@@ -232,7 +300,7 @@ export default function IntelligentSearchScreen({ navigation, allProducts = [] }
               </Text>
             </View>
           )}
-          
+
           {searchMetadata.detectedFilters.city && (
             <View style={styles.detectedBadge}>
               <Text style={styles.detectedText}>
@@ -263,6 +331,9 @@ export default function IntelligentSearchScreen({ navigation, allProducts = [] }
           <Text style={styles.emptyTitle}>Aucun résultat</Text>
           <Text style={styles.emptyText}>
             Essayez avec d'autres mots-clés ou vérifiez l'orthographe
+          </Text>
+          <Text style={styles.emptyHint}>
+            💡 {allProducts.length} produits disponibles au total
           </Text>
         </View>
       ) : null}
@@ -310,6 +381,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#8E8E93',
     padding: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#8E8E93',
   },
   suggestionsContainer: {
     flex: 1,
@@ -369,22 +450,13 @@ const styles = StyleSheet.create({
     color: '#1976D2',
     fontWeight: '600',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#8E8E93',
-  },
   resultsContainer: {
     padding: 8,
   },
   productCard: {
     flex: 1,
     margin: 8,
+    maxWidth: '46%',
     backgroundColor: 'white',
     borderRadius: 12,
     overflow: 'hidden',
@@ -436,6 +508,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000',
     marginBottom: 4,
+    minHeight: 36,
   },
   startupName: {
     fontSize: 12,
@@ -486,5 +559,11 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     textAlign: 'center',
     lineHeight: 20,
+    marginBottom: 12,
+  },
+  emptyHint: {
+    fontSize: 12,
+    color: '#007AFF',
+    textAlign: 'center',
   },
 });
