@@ -44,14 +44,16 @@ export default function StartupDashboardScreen({ route, navigation }) {
   // ✅ PHASE 1: Stats abonnement
   const [subscriptionStats, setSubscriptionStats] = useState(null);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
-
+  // Charger le dashboard seulement quand l'écran reçoit le focus
+  // Cela évite de charger deux fois au montage initial
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadDashboard();
     });
+
+    // Charger une première fois au montage
+    loadDashboard();
+
     return unsubscribe;
   }, [navigation]);
 
