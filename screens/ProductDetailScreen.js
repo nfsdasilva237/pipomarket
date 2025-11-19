@@ -6,6 +6,7 @@ import {
   Alert,
   Dimensions,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,8 +27,11 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalImageIndex, setModalImageIndex] = useState(0);
 
   const scrollViewRef = useRef(null);
+  const modalScrollViewRef = useRef(null);
 
   useEffect(() => {
     loadProduct();
@@ -118,6 +122,31 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
     setCurrentImageIndex(index);
   };
 
+  // ✅ Gérer le scroll dans le modal
+  const handleModalScroll = (event) => {
+    const scrollPosition = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollPosition / SCREEN_WIDTH);
+    setModalImageIndex(index);
+  };
+
+  // ✅ Ouvrir l'image en plein écran
+  const openImageModal = (index) => {
+    setModalImageIndex(index);
+    setModalVisible(true);
+    // Attendre que le modal soit visible avant de scroller
+    setTimeout(() => {
+      modalScrollViewRef.current?.scrollTo({
+        x: index * SCREEN_WIDTH,
+        animated: false,
+      });
+    }, 100);
+  };
+
+  // ✅ Fermer le modal
+  const closeImageModal = () => {
+    setModalVisible(false);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -181,7 +210,12 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
             scrollEventThrottle={16}
           >
             {productImages.map((image, index) => (
-              <View key={index} style={styles.imageSlide}>
+              <TouchableOpacity
+                key={index}
+                style={styles.imageSlide}
+                activeOpacity={0.9}
+                onPress={() => openImageModal(index)}
+              >
                 {isImageUrl(image) ? (
                   <Image
                     source={{ uri: image }}
@@ -193,7 +227,7 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
                     <Text style={styles.productEmoji}>{image || '📦'}</Text>
                   </View>
                 )}
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
 
@@ -332,6 +366,79 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
           </TouchableOpacity>
         </View>
       )}
+
+      {/* ✅ MODAL ZOOM IMAGE */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeImageModal}
+      >
+        <View style={styles.modalContainer}>
+          {/* Fond semi-transparent cliquable pour fermer */}
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={closeImageModal}
+          />
+
+          {/* Bouton fermer */}
+          <TouchableOpacity style={styles.modalCloseButton} onPress={closeImageModal}>
+            <Text style={styles.modalCloseText}>✕</Text>
+          </TouchableOpacity>
+
+          {/* Compteur d'images */}
+          {productImages.length > 1 && (
+            <View style={styles.modalImageCounter}>
+              <Text style={styles.modalImageCounterText}>
+                {modalImageIndex + 1}/{productImages.length}
+              </Text>
+            </View>
+          )}
+
+          {/* Carrousel d'images en plein écran */}
+          <ScrollView
+            ref={modalScrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleModalScroll}
+            scrollEventThrottle={16}
+            style={styles.modalScrollView}
+          >
+            {productImages.map((image, index) => (
+              <View key={index} style={styles.modalImageSlide}>
+                {isImageUrl(image) ? (
+                  <Image
+                    source={{ uri: image }}
+                    style={styles.modalImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={styles.modalEmojiContainer}>
+                    <Text style={styles.modalEmoji}>{image || '📦'}</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Indicateurs de pagination */}
+          {productImages.length > 1 && (
+            <View style={styles.modalPaginationContainer}>
+              {productImages.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.modalPaginationDot,
+                    modalImageIndex === index && styles.modalPaginationDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -613,5 +720,92 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+
+  // ✅ MODAL ZOOM
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  modalCloseText: {
+    fontSize: 28,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  modalImageCounter: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    zIndex: 10,
+  },
+  modalImageCounterText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalImageSlide: {
+    width: SCREEN_WIDTH,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalImage: {
+    width: SCREEN_WIDTH,
+    height: '100%',
+  },
+  modalEmojiContainer: {
+    width: SCREEN_WIDTH,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalEmoji: {
+    fontSize: 200,
+  },
+  modalPaginationContainer: {
+    position: 'absolute',
+    bottom: 60,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalPaginationDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: 5,
+  },
+  modalPaginationDotActive: {
+    backgroundColor: 'white',
+    width: 30,
   },
 });
