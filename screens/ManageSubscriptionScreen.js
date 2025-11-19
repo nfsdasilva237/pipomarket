@@ -25,6 +25,13 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
 
   const loadSubscription = async () => {
     try {
+      // ✅ Vérifier que l'utilisateur est connecté
+      if (!auth.currentUser || !startupId) {
+        console.log('⚠️ Utilisateur non connecté ou startupId manquant');
+        setLoading(false);
+        return;
+      }
+
       const [subResult, statsResult] = await Promise.all([
         subscriptionService.getSubscription(startupId),
         subscriptionService.getSubscriptionStats(startupId),

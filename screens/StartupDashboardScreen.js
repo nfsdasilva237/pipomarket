@@ -57,8 +57,15 @@ export default function StartupDashboardScreen({ route, navigation }) {
 
   const loadDashboard = async () => {
     try {
+      // ✅ Vérifier que l'utilisateur est connecté
+      if (!auth.currentUser) {
+        console.log('⚠️ Utilisateur non connecté');
+        setLoading(false);
+        return;
+      }
+
       let finalStartupId = paramStartupId;
-      
+
       if (!finalStartupId) {
         const q = query(
           collection(db, 'startups'),

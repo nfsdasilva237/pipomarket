@@ -20,8 +20,15 @@ export default function SubscriptionScreen({ navigation, route }) {
 
   const handleSubscribe = async (planId) => {
   setLoading(true);
-  
+
   try {
+    // ✅ Vérifier que l'utilisateur est connecté
+    if (!auth.currentUser || !startupId) {
+      Alert.alert('Erreur', 'Vous devez être connecté');
+      setLoading(false);
+      return;
+    }
+
     // Vérifier si abonnement existe
     const subResult = await subscriptionService.getSubscription(startupId);
     
