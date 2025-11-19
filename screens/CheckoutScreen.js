@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import OrderConfirmationModal from '../components/OrderConfirmationModal';
 import { auth, db } from '../config/firebase';
+import notificationService from '../utils/notificationService';
 import promoCodeService from '../utils/promoCodeService';
 
 export default function CheckoutScreen({ navigation, route, cart: globalCart, clearCart }) {
@@ -265,6 +266,46 @@ export default function CheckoutScreen({ navigation, route, cart: globalCart, cl
         fullId: fullOrderId,
         shortId: shortOrderId
       });
+
+      // ✅ ENVOYER NOTIFICATIONS AUX STARTUPS
+      const startupGroups = cart.reduce((acc, item) => {
+        if (!acc[item.startupId]) {
+          acc[item.startupId] = {
+            id: item.startupId,
+            name: item.startupName || 'Startup',
+            total: 0,
+            items: []
+          };
+        }
+        acc[item.startupId].total += item.price * item.quantity;
+        acc[item.startupId].items.push(item);
+        return acc;
+      }, {});
+
+      // Notifier chaque startup concernée
+      await Promise.all(
+        Object.values(startupGroups).map(async (startup) => {
+          try {
+            await notificationService.sendNotificationToStartup(
+              startup.id,
+              '🛍️ Nouvelle commande !',
+              `Vous avez reçu une nouvelle commande de ${startup.total.toLocaleString('fr-FR')} FCFA`,
+              {
+                type: 'new_order',
+                orderId: fullOrderId,
+                shortOrderId: shortOrderId,
+                total: startup.total,
+                itemCount: startup.items.length,
+                customerName: userData.fullName || userData.name || 'Client'
+              }
+            );
+            console.log(`✅ Notification envoyée à startup ${startup.name}`);
+          } catch (notifError) {
+            console.error('⚠️ Erreur notification startup:', notifError);
+            // Ne pas bloquer la commande si notification échoue
+          }
+        })
+      );
 
       if (appliedPromo) {
         await promoCodeService.applyPromoCode(appliedPromo.id, userId);
