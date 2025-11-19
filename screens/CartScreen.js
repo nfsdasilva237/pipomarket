@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import PaymentModal from '../components/PaymentModal';
 import { auth, db } from '../config/firebase';
 import { calculatePoints } from '../config/loyaltyConfig';
+import notificationService from '../utils/notificationService';
 
 export default function CartScreen({ navigation, route, cart, updateQuantity, removeFromCart }) {
   const [userPoints, setUserPoints] = useState(0);
@@ -153,6 +154,31 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
       if (!startupData) {
         Alert.alert('Erreur', 'Startup introuvable');
         return;
+      }
+
+      // ✅ ENVOYER NOTIFICATION À LA STARTUP
+      try {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        const customerName = userData.fullName || userData.name || 'Client';
+
+        await notificationService.sendNotificationToStartup(
+          finalStartupId,
+          '🛍️ Nouvelle commande !',
+          `Vous avez reçu une nouvelle commande de ${startupTotal.toLocaleString('fr-FR')} FCFA`,
+          {
+            type: 'new_order',
+            orderId: order.id,
+            shortOrderId: order.id.slice(0, 8),
+            total: startupTotal,
+            itemCount: items.length,
+            customerName: customerName
+          }
+        );
+        console.log(`✅ Notification envoyée à startup ${startupData.name}`);
+      } catch (notifError) {
+        console.error('⚠️ Erreur notification startup:', notifError);
+        // Ne pas bloquer la commande si notification échoue
       }
 
       // 4. Préparer données paiement

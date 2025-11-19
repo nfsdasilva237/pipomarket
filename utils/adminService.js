@@ -1,6 +1,7 @@
 // utils/adminService.js - SERVICE ADMIN
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
+import notificationService from './notificationService';
 
 // CODE SECRET ADMIN
 const ADMIN_SECRET_CODE = 'PIPOMARKET_ADMIN_2025';
@@ -247,10 +248,68 @@ export const adminService = {
   // MODIFIER STATUT COMMANDE (ADMIN)
   updateOrderStatus: async (orderId, newStatus) => {
     try {
-      await updateDoc(doc(db, 'orders', orderId), {
+      // Récupérer la commande pour avoir l'userId
+      const orderRef = doc(db, 'orders', orderId);
+      const orderDoc = await getDoc(orderRef);
+
+      if (!orderDoc.exists()) {
+        return { success: false, error: 'Commande introuvable' };
+      }
+
+      const orderData = orderDoc.data();
+
+      // Mettre à jour le statut
+      await updateDoc(orderRef, {
         status: newStatus,
         updatedAt: new Date(),
+        adminUpdated: true,
       });
+
+      // ✅ ENVOYER NOTIFICATION AU CLIENT
+      try {
+        let notifTitle = '';
+        let notifBody = '';
+
+        switch (newStatus) {
+          case 'processing':
+            notifTitle = '🏭 Commande en préparation';
+            notifBody = 'Votre commande est en cours de préparation.';
+            break;
+          case 'shipped':
+            notifTitle = '🚚 Commande expédiée';
+            notifBody = 'Votre commande a été expédiée !';
+            break;
+          case 'delivered':
+            notifTitle = '✅ Commande livrée';
+            notifBody = 'Votre commande a été livrée. Merci !';
+            break;
+          case 'cancelled':
+            notifTitle = '❌ Commande annulée';
+            notifBody = 'Votre commande a été annulée.';
+            break;
+          default:
+            notifTitle = '📦 Mise à jour commande';
+            notifBody = `Votre commande a été mise à jour: ${newStatus}`;
+        }
+
+        if (orderData.userId && notifTitle) {
+          await notificationService.sendNotificationToUser(
+            orderData.userId,
+            notifTitle,
+            notifBody,
+            {
+              type: 'order_status_admin',
+              orderId: orderId,
+              status: newStatus
+            }
+          );
+          console.log(`✅ Notification admin envoyée au client pour commande ${orderId}`);
+        }
+      } catch (notifError) {
+        console.error('⚠️ Erreur notification admin:', notifError);
+        // Ne pas bloquer la mise à jour si notification échoue
+      }
+
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
