@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import PaymentModal from '../components/PaymentModal';
+import OrderConfirmationModal from '../components/OrderConfirmationModal';
 import { auth, db } from '../config/firebase';
 import { calculatePoints } from '../config/loyaltyConfig';
 import notificationService from '../utils/notificationService';
@@ -19,7 +19,7 @@ import notificationService from '../utils/notificationService';
 export default function CartScreen({ navigation, route, cart, updateQuantity, removeFromCart }) {
   const [userPoints, setUserPoints] = useState(0);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-  const [orderData, setOrderData] = useState(null);
+  const [confirmationData, setConfirmationData] = useState(null);
   const [groupedCart, setGroupedCart] = useState({});
 
   useEffect(() => {
@@ -181,20 +181,26 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
         // Ne pas bloquer la commande si notification échoue
       }
 
-      // 4. Préparer données paiement
-      const finalPhone = startupData.ownerPhone || startupData.phone || '+237600000000';
+      // 4. Préparer données pour OrderConfirmationModal
+      const mtnPhone = startupData.mtnPhone || startupData.ownerPhone || startupData.phone || '+237600000000';
+      const orangePhone = startupData.orangePhone || startupData.ownerPhone || startupData.phone || '+237600000000';
 
-      setOrderData({
+      setConfirmationData({
         orderId: order.id,
-        startupId: finalStartupId,
-        userId: auth.currentUser.uid,
         total: startupTotal,
-        startupPhone: finalPhone,
-        startupName: startupData.name || 'PipoMarket',
-        operator: 'mtn',
+        paymentMethod: 'mobile_money',
+        mobileMoneyProvider: 'mtn', // Par défaut MTN
+        startupPayments: [{
+          id: finalStartupId,
+          name: startupData.name || 'PipoMarket',
+          total: startupTotal,
+          mtnPhone: mtnPhone,
+          orangePhone: orangePhone,
+        }],
+        userId: auth.currentUser.uid,
       });
 
-      console.log('✅ Paiement préparé pour:', startupData.name, startupTotal, 'F');
+      console.log('✅ Confirmation préparée pour:', startupData.name, startupTotal, 'F');
 
       // 5. Ouvrir modal
       setPaymentModalVisible(true);
@@ -384,34 +390,31 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
         )}
       </ScrollView>
 
-      {/* MODAL PAIEMENT */}
-      <PaymentModal
-        visible={paymentModalVisible}
-        onClose={() => setPaymentModalVisible(false)}
-        orderData={orderData}
-        onPaymentConfirmed={() => {
-          setPaymentModalVisible(false);
-          // Retirer items de la startup payée
-          if (orderData?.startupId) {
-            removeStartupFromCart(orderData.startupId);
-          }
-          Alert.alert(
-            'Paiement enregistré',
-            'Votre paiement a été enregistré. La startup va confirmer.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  // Si plus d'items, retour home
-                  if (!cart || cart.filter(item => item.startupId !== orderData?.startupId).length === 0) {
-                    navigation.navigate('HomeTab');
-                  }
-                }
-              }
-            ]
-          );
-        }}
-      />
+      {/* MODAL CONFIRMATION */}
+      {confirmationData && (
+        <OrderConfirmationModal
+          visible={paymentModalVisible}
+          onClose={() => {
+            setPaymentModalVisible(false);
+            setConfirmationData(null);
+          }}
+          orderId={confirmationData.orderId}
+          total={confirmationData.total}
+          paymentMethod={confirmationData.paymentMethod}
+          mobileMoneyProvider={confirmationData.mobileMoneyProvider}
+          startupPayments={confirmationData.startupPayments}
+          userId={confirmationData.userId}
+          onViewOrders={() => {
+            setPaymentModalVisible(false);
+            setConfirmationData(null);
+            // Retirer items de la startup payée
+            if (confirmationData.startupPayments && confirmationData.startupPayments.length > 0) {
+              removeStartupFromCart(confirmationData.startupPayments[0].id);
+            }
+            navigation.navigate('Orders');
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
