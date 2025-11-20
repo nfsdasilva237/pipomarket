@@ -87,7 +87,7 @@ function ClientTabs({ cart, addToCart, updateQuantity, removeFromCart, clearCart
           ),
         }}
       >
-        {(props) => <HomeScreen {...props} />}
+        {(props) => <HomeScreen {...props} addToCart={addToCart} />}
       </Tab.Screen>
 
       {/* STARTUPS */}
