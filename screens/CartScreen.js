@@ -99,7 +99,7 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
   const handleCheckoutStartup = async (startupId, items) => {
     try {
       // 1. Calculer total pour cette startup
-      const startupTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const startupTotal = items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
 
       // 2. Créer commande
       const orderItems = items.map(item => ({
@@ -211,7 +211,7 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
     itemsToRemove.forEach(item => removeFromCart(item.id));
   };
 
-  const totalCart = cart?.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
+  const totalCart = cart?.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) || 0;
   const pointsToEarn = calculatePoints(totalCart, userPoints);
 
   return (
@@ -268,7 +268,7 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
 
             {/* ✅ AFFICHER PAR STARTUP */}
             {Object.entries(groupedCart).map(([startupId, items]) => {
-              const startupTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+              const startupTotal = items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
               const startupPoints = calculatePoints(startupTotal, userPoints);
 
               return (
@@ -313,7 +313,7 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
                       <View style={styles.cartItemInfo}>
                         <Text style={styles.cartItemName}>{item.name}</Text>
                         <Text style={styles.cartItemPrice}>
-                          {item.price.toLocaleString()} FCFA
+                          {(item.price || 0).toLocaleString()} FCFA
                         </Text>
                       </View>
                       <View style={styles.cartItemActions}>
