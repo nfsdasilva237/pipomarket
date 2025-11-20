@@ -1,13 +1,14 @@
 {
   "cli": {
-    "version": ">= 5.2.0"
+    "version": ">= 15.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
+      "ios": {
+        "simulator": true
       }
     },
     "preview": {
@@ -21,16 +22,11 @@
         "buildType": "app-bundle"
       },
       "ios": {
-        "simulator": false
+        "buildConfiguration": "Release"
       }
     }
   },
   "submit": {
-    "production": {
-      "android": {
-        "serviceAccountKeyPath": "./pc-api-google-play.json"
-      },
-      "ios": {}
-    }
+    "production": {}
   }
 }
