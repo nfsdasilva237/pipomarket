@@ -1,0 +1,1057 @@
+\documentclass[12pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{a4paper, margin=2.5cm}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{longtable}
+\usepackage{booktabs}
+
+% Configuration des couleurs
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+% Style pour le code
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% Configuration hyperref
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    pdftitle={Guide Publication PipoMarket},
+    pdfauthor={PipoMarket Team},
+}
+
+% En-tête et pied de page
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Guide Publication PipoMarket}
+\lhead{\leftmark}
+\cfoot{\thepage}
+
+% Titre
+\title{\Huge\textbf{Guide Complet de Publication} \\ \Large Play Store \& App Store \\ \vspace{0.5cm} \large PipoMarket}
+\author{Documentation Technique}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\newpage
+
+\tableofcontents
+\newpage
+
+% =====================================================
+% PARTIE 1: QUICK START
+% =====================================================
+
+\section{Quick Start - Démarrage Rapide}
+
+\begin{tcolorbox}[colback=yellow!10!white,colframe=yellow!75!black,title=⚡ Pour Commencer Demain Matin]
+Ce guide vous permet de publier PipoMarket sur Play Store et App Store en une journée de travail.
+\end{tcolorbox}
+
+\subsection{Vue d'ensemble rapide}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+\textbf{Plateforme} & \textbf{Build} & \textbf{Review} & \textbf{Coût} & \textbf{Difficulté} \\
+\hline
+Play Store & 20-30 min & 3-7 jours & 25\$ (unique) & ⭐⭐ Facile \\
+App Store & 20-30 min & 1-2 semaines & 99\$/an & ⭐⭐⭐ Moyen \\
+\hline
+\end{tabular}
+\caption{Comparaison des plateformes}
+\end{table}
+
+\subsection{Plan de la journée}
+
+\subsubsection{1. MATIN (1-2h) - Créer les comptes}
+
+\textbf{Play Store:}
+\begin{itemize}
+    \item URL: \url{https://play.google.com/console/signup}
+    \item Coût: 25\$ (carte bancaire)
+    \item Activation: Immédiate ✅
+\end{itemize}
+
+\textbf{App Store:}
+\begin{itemize}
+    \item URL: \url{https://developer.apple.com/programs/enroll/}
+    \item Coût: 99\$/an (carte bancaire)
+    \item Activation: 24-48h ⏱️
+\end{itemize}
+
+\subsubsection{2. MIDI (2-3h) - Préparer les assets}
+
+\textbf{A. Screenshots (Priorité 1)}
+
+Sur votre téléphone Android:
+\begin{enumerate}
+    \item Lancez l'app: \texttt{npx expo start}
+    \item Scannez le QR code avec Expo Go
+    \item Prenez 4-6 screenshots:
+    \begin{itemize}
+        \item Écran d'accueil
+        \item Page produit
+        \item Panier
+        \item Profil startup
+    \end{itemize}
+    \item Sauvegardez dans \texttt{screenshots/}
+\end{enumerate}
+
+\textbf{B. Feature Graphic (Play Store)}
+\begin{itemize}
+    \item Dimensions: \textbf{1024 × 500 px}
+    \item Format: PNG ou JPG
+    \item Outil recommandé: Canva.com (gratuit)
+    \item Contenu: Logo + "PipoMarket - Marketplace Camerounaise"
+\end{itemize}
+
+\textbf{C. Politique de confidentialité}
+\begin{itemize}
+    \item Copiez le template (voir section Templates)
+    \item Mettez-le en ligne sur: \texttt{pipomarket.com/privacy}
+\end{itemize}
+
+\subsubsection{3. APRÈS-MIDI (1h) - Build Android}
+
+\begin{lstlisting}[language=bash,caption={Commandes Build Android}]
+# Installation EAS CLI
+npm install -g eas-cli
+
+# Connexion
+eas login
+
+# Initialisation
+eas init
+
+# Build Android
+eas build --platform android --profile production
+\end{lstlisting}
+
+⏱️ \textbf{Durée du build}: 20-30 minutes (automatique dans le cloud)
+
+Pendant l'attente, passez à l'étape suivante.
+
+\subsubsection{4. PENDANT LE BUILD - Préparer Play Store}
+
+\begin{enumerate}
+    \item Allez sur: \url{https://play.google.com/console}
+    \item Cliquez "Créer une application"
+    \item Nom: \textbf{PipoMarket}
+    \item Type: Application, Gratuite
+    \item Préparez:
+    \begin{itemize}
+        \item Feature Graphic (1024×500)
+        \item Screenshots (minimum 2)
+        \item Icône: \texttt{assets/images/icon.png}
+        \item Descriptions (voir section Templates)
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{5. FIN D'APRÈS-MIDI - Soumission Play Store}
+
+\begin{enumerate}
+    \item Build Android terminé → Téléchargez le fichier \texttt{.aab}
+    \item Play Console → Production → Créer une version
+    \item Uploadez le \texttt{.aab}
+    \item Uploadez Feature Graphic + Screenshots
+    \item Remplissez tous les champs (descriptions, contact, etc.)
+    \item Cliquez \textbf{"Déployer en production"}
+\end{enumerate}
+
+✅ \textbf{FAIT!} Attente: 3-7 jours pour la review Google.
+
+\subsubsection{6. SOIR (1h) - Build iOS}
+
+\textbf{Seulement si le compte Apple est activé}
+
+\begin{lstlisting}[language=bash,caption={Build iOS}]
+eas build --platform ios --profile production
+\end{lstlisting}
+
+Pendant le build (20-30 min):
+\begin{enumerate}
+    \item Allez sur: \url{https://appstoreconnect.apple.com}
+    \item Créez l'app: PipoMarket
+    \item Bundle ID: \texttt{com.pipomarket.app}
+\end{enumerate}
+
+\subsubsection{7. PLUS TARD - Soumission App Store}
+
+Après que le build iOS apparaisse dans App Store Connect:
+\begin{enumerate}
+    \item Uploadez screenshots iPhone (voir dimensions exactes plus loin)
+    \item Copiez-collez les textes (section Templates)
+    \item Remplissez tous les champs
+    \item Cliquez \textbf{"Envoyer pour examen"}
+\end{enumerate}
+
+✅ \textbf{FAIT!} Attente: 1-2 semaines pour la review Apple.
+
+\subsection{Checklist rapide}
+
+\subsubsection{Avant de dormir ce soir}
+\begin{itemize}[label=$\square$]
+    \item Lire ce document en entier
+    \item Préparer CB pour payer les comptes (25\$ + 99\$)
+\end{itemize}
+
+\subsubsection{Demain matin (7h-9h)}
+\begin{itemize}[label=$\square$]
+    \item Créer compte Play Store (25\$)
+    \item Créer compte Apple Developer (99\$)
+    \item Café ☕
+\end{itemize}
+
+\subsubsection{Demain midi (12h-15h)}
+\begin{itemize}[label=$\square$]
+    \item Prendre screenshots sur téléphone
+    \item Créer Feature Graphic sur Canva
+    \item Copier politique confidentialité sur site
+    \item Déjeuner 🍽️
+\end{itemize}
+
+\subsubsection{Demain après-midi (15h-18h)}
+\begin{itemize}[label=$\square$]
+    \item Installer EAS: \texttt{npm install -g eas-cli}
+    \item Build Android: \texttt{eas build --platform android}
+    \item Créer app sur Play Console
+    \item Remplir fiche Play Store
+    \item Télécharger .aab et soumettre
+    \item Build iOS: \texttt{eas build --platform ios}
+\end{itemize}
+
+\subsubsection{Demain soir (19h-20h)}
+\begin{itemize}[label=$\square$]
+    \item Créer app sur App Store Connect
+    \item Préparer screenshots iPhone
+    \item Repos! 😴
+\end{itemize}
+
+\subsection{Budget et Timeline}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Item} & \textbf{Prix} \\
+\hline
+Play Store & 25\$ (une fois) \\
+App Store & 99\$ (par an) \\
+\textbf{TOTAL} & \textbf{124\$} \\
+\hline
+\end{tabular}
+\caption{Budget total}
+\end{table}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Action} & \textbf{Durée travail} & \textbf{Durée attente} \\
+\hline
+Créer comptes & 30 min & - \\
+Préparer assets & 2-3h & - \\
+Builds (auto) & 1h & - \\
+Remplir fiches & 2h & - \\
+\textbf{Total travail} & \textbf{~6h} & - \\
+\hline
+Review Play Store & - & 3-7 jours \\
+Review App Store & - & 1-2 semaines \\
+\hline
+\end{tabular}
+\caption{Timeline complète}
+\end{table}
+
+\newpage
+
+% =====================================================
+% PARTIE 2: GUIDE DÉTAILLÉ
+% =====================================================
+
+\section{Guide Détaillé - Action Stores}
+
+\subsection{Préparation}
+
+\subsubsection{Créer les comptes développeurs}
+
+\textbf{Play Store (Android)}
+\begin{enumerate}
+    \item Allez sur: \url{https://play.google.com/console/signup}
+    \item Payez 25\$ (frais unique, à vie)
+    \item Remplissez informations développeur
+    \item Activation: immédiate
+\end{enumerate}
+
+\textbf{App Store (iOS)}
+\begin{enumerate}
+    \item Allez sur: \url{https://developer.apple.com/programs/enroll/}
+    \item Payez 99\$/an
+    \item Remplissez informations développeur
+    \item Activation: 24-48 heures (parfois plus long)
+\end{enumerate}
+
+\subsubsection{Installation EAS CLI}
+
+Ouvrez votre terminal Windows et exécutez:
+
+\begin{lstlisting}[language=bash]
+npm install -g eas-cli
+\end{lstlisting}
+
+Vérifiez l'installation:
+\begin{lstlisting}[language=bash]
+eas --version
+\end{lstlisting}
+
+\subsection{Build Android (Play Store)}
+
+\subsubsection{Connexion et initialisation}
+
+\begin{lstlisting}[language=bash]
+# 1. Se connecter a Expo
+eas login
+
+# 2. Initialiser le projet EAS
+eas init
+
+# 3. Configurer le projet
+eas build:configure
+\end{lstlisting}
+
+Quand il demande:
+\begin{itemize}
+    \item \textbf{"Select platform"}: Choisissez \texttt{All} (pour préparer iOS aussi)
+\end{itemize}
+
+\subsubsection{Vérifier app.json}
+
+Assurez-vous que ces informations sont correctes dans \texttt{app.json}:
+
+\begin{lstlisting}[language=json]
+{
+  "expo": {
+    "name": "PipoMarket",
+    "version": "1.0.0",
+    "android": {
+      "package": "com.pipomarket.app",
+      "versionCode": 1
+    }
+  }
+}
+\end{lstlisting}
+
+\subsubsection{Lancer le build Android}
+
+\begin{lstlisting}[language=bash]
+eas build --platform android --profile production
+\end{lstlisting}
+
+\textbf{Ce qui va se passer:}
+\begin{enumerate}
+    \item Upload de votre code vers Expo
+    \item Build dans le cloud (20-30 minutes)
+    \item Vous recevrez un email quand c'est prêt
+    \item Vous pourrez télécharger le fichier \texttt{.aab}
+\end{enumerate}
+
+\textbf{Pendant l'attente}, préparez votre fiche Play Store.
+
+\subsection{Préparer la fiche Play Store}
+
+\subsubsection{Assets nécessaires}
+
+\textbf{1. Feature Graphic (OBLIGATOIRE)}
+\begin{itemize}
+    \item Dimensions: \textbf{1024 × 500 px}
+    \item Format: PNG ou JPG
+    \item Contenu: Logo + Texte "PipoMarket - Marketplace Camerounaise"
+    \item Outil: Canva, Photoshop, ou GIMP
+\end{itemize}
+
+\textbf{2. Screenshots Android (MINIMUM 2)}
+\begin{itemize}
+    \item Dimensions recommandées: \textbf{1080 × 1920 px}
+    \item Minimum: 2 screenshots
+    \item Recommandé: 4-8 screenshots
+    \item Contenu suggéré:
+    \begin{itemize}
+        \item Écran d'accueil avec produits
+        \item Page produit
+        \item Panier
+        \item Profil startup
+        \item Commandes
+    \end{itemize}
+\end{itemize}
+
+\textbf{Comment prendre des screenshots:}
+\begin{lstlisting}[language=bash]
+# Lance l'app en emulateur
+npx expo run:android
+
+# Dans l'emulateur, utilisez les boutons de capture
+# Ou utilisez votre telephone Android
+\end{lstlisting}
+
+\textbf{3. Icône app}
+\begin{itemize}
+    \item Déjà prêt: \texttt{assets/images/icon.png} (1024×1024)
+\end{itemize}
+
+\subsubsection{Textes à préparer}
+
+\textbf{Description courte (80 caractères max)}
+
+\textit{Marketplace camerounaise - Découvrez et soutenez les startups locales}
+
+\textbf{Catégorie}: Shopping
+
+\textbf{Type de contenu}: Pour tous publics
+
+\textbf{E-mail de contact}: Votre email
+
+\textbf{Politique de confidentialité}: URL obligatoire (voir section suivante)
+
+\subsection{Politique de confidentialité (OBLIGATOIRE)}
+
+Vous DEVEZ avoir une URL de politique de confidentialité accessible publiquement.
+
+\textbf{Option A}: Créer une page sur votre site \texttt{pipomarket.com/privacy}
+
+\textbf{Option B}: Utiliser un générateur en ligne
+\begin{itemize}
+    \item \url{https://www.privacypolicygenerator.info/}
+    \item \url{https://app-privacy-policy-generator.firebaseapp.com/}
+\end{itemize}
+
+Un template complet est fourni dans la section Templates de ce document.
+
+\subsection{Soumission sur Play Store}
+
+\subsubsection{Télécharger le build}
+
+\begin{enumerate}
+    \item Quand le build est prêt, allez sur: \\ \url{https://expo.dev/accounts/[compte]/projects/pipomarket/builds}
+    \item Cliquez sur le build Android
+    \item Téléchargez le fichier \texttt{.aab}
+\end{enumerate}
+
+\subsubsection{Upload sur Play Console}
+
+\begin{enumerate}
+    \item Allez sur: \url{https://play.google.com/console}
+    \item Cliquez \textbf{"Créer une application"}
+    \item Remplissez:
+    \begin{itemize}
+        \item Nom: \textbf{PipoMarket}
+        \item Langue par défaut: \textbf{Français}
+        \item Type: \textbf{Application}
+        \item Gratuite/Payante: \textbf{Gratuite}
+    \end{itemize}
+    \item Section "Production" → "Créer une version"
+    \item Uploadez le fichier \texttt{.aab}
+    \item Remplissez tous les champs:
+    \begin{itemize}
+        \item Feature graphic
+        \item Screenshots
+        \item Description courte
+        \item Description complète
+        \item Icône
+        \item Catégorie
+        \item Email de contact
+        \item Politique de confidentialité
+    \end{itemize}
+    \item \textbf{Questionnaire de contenu}:
+    \begin{itemize}
+        \item Pas de contenu pour adultes: Non
+        \item Annonces: Non
+        \item Collecte de données: Oui (email, nom, téléphone)
+    \end{itemize}
+    \item Tarification: Gratuite dans tous les pays
+    \item Cliquez "Vérifier la version"
+    \item Cliquez "Déployer en production"
+\end{enumerate}
+
+\subsubsection{Attente de la review}
+
+\begin{itemize}
+    \item ⏱️ \textbf{3 à 7 jours} en moyenne
+    \item Vous recevrez un email de Google
+    \item Statut visible dans Play Console
+\end{itemize}
+
+\subsection{Build iOS (App Store)}
+
+\subsubsection{Prérequis}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black,title=Important]
+Vous n'avez PAS besoin de Mac! EAS peut gérer la signature des apps dans le cloud automatiquement.
+\end{tcolorbox}
+
+\subsubsection{Configuration iOS dans app.json}
+
+Vérifiez que \texttt{app.json} contient:
+
+\begin{lstlisting}[language=json]
+{
+  "expo": {
+    "ios": {
+      "bundleIdentifier": "com.pipomarket.app",
+      "buildNumber": "1"
+    }
+  }
+}
+\end{lstlisting}
+
+\subsubsection{Lancer le build iOS}
+
+\begin{lstlisting}[language=bash]
+eas build --platform ios --profile production
+\end{lstlisting}
+
+\textbf{EAS va vous demander:}
+\begin{itemize}
+    \item "Generate a new Apple Distribution Certificate?": Choisissez \textbf{Yes}
+    \item "Generate a new Apple Provisioning Profile?": Choisissez \textbf{Yes}
+\end{itemize}
+
+EAS va gérer automatiquement:
+\begin{itemize}
+    \item Création des certificats
+    \item Signature de l'app
+    \item Upload vers Apple
+\end{itemize}
+
+⏱️ \textbf{Durée}: 20-30 minutes
+
+\subsubsection{Pendant l'attente: Préparer App Store Connect}
+
+\begin{enumerate}
+    \item Allez sur: \url{https://appstoreconnect.apple.com}
+    \item Cliquez "Mes apps" → "+" → "Nouvelle app"
+    \item Remplissez:
+    \begin{itemize}
+        \item Plateformes: iOS
+        \item Nom: PipoMarket
+        \item Langue principale: Français
+        \item Bundle ID: com.pipomarket.app (doit correspondre à app.json)
+        \item SKU: pipomarket (identifiant unique)
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Préparer la fiche App Store}
+
+\subsubsection{Assets nécessaires}
+
+\textbf{1. Screenshots iPhone (OBLIGATOIRE)}
+
+Vous avez besoin de 2 tailles minimum:
+
+\begin{itemize}
+    \item \textbf{iPhone 6.7" (iPhone 15 Pro Max, 14 Pro Max)}
+    \begin{itemize}
+        \item Dimensions: \textbf{1290 × 2796 px}
+        \item Minimum: 3 screenshots
+    \end{itemize}
+    \item \textbf{iPhone 6.5" (iPhone 11 Pro Max, XS Max)}
+    \begin{itemize}
+        \item Dimensions: \textbf{1242 × 2688 px}
+        \item Minimum: 3 screenshots
+    \end{itemize}
+\end{itemize}
+
+\textbf{Comment les créer:}
+\begin{itemize}
+    \item Utilisez le simulateur iOS (si vous avez un Mac)
+    \item Ou redimensionnez vos screenshots Android avec Photoshop/GIMP
+    \item Ou utilisez un outil comme \url{https://www.mokup.ai/}
+\end{itemize}
+
+\textbf{2. Screenshots iPad (OPTIONNEL)}
+\begin{itemize}
+    \item Dimensions: \textbf{2048 × 2732 px}
+\end{itemize}
+
+\textbf{3. Icône app}
+\begin{itemize}
+    \item Déjà prêt: \texttt{assets/images/icon.png} (1024×1024)
+\end{itemize}
+
+\subsubsection{Textes à préparer}
+
+\textbf{Nom de l'app (30 caractères max)}
+
+\textit{PipoMarket}
+
+\textbf{Sous-titre (30 caractères max)}
+
+\textit{Marketplace Camerounaise}
+
+\textbf{Mots-clés (100 caractères max)}
+
+\textit{marketplace,cameroun,startup,shopping,local,cameroon,artisan,entrepreneur}
+
+\textbf{Catégorie primaire}: Shopping
+
+\textbf{Catégorie secondaire}: Business
+
+\subsection{Soumission sur App Store}
+
+\subsubsection{Upload du build}
+
+Quand EAS a terminé:
+\begin{enumerate}
+    \item Allez sur: \url{https://expo.dev/accounts/[compte]/projects/pipomarket/builds}
+    \item Le build iOS apparaît automatiquement dans App Store Connect après 10-15 minutes
+    \item Rafraîchissez App Store Connect
+\end{enumerate}
+
+\subsubsection{Remplir la fiche App Store Connect}
+
+\begin{enumerate}
+    \item \textbf{Informations sur l'app:}
+    \begin{itemize}
+        \item Uploadez tous les screenshots
+        \item Description, sous-titre, mots-clés
+        \item URL de support et confidentialité
+    \end{itemize}
+    \item \textbf{Classification du contenu:}
+    \begin{itemize}
+        \item Âge: 4+ (tout public)
+        \item Pas de contenu sensible
+    \end{itemize}
+    \item \textbf{Informations sur les prix:}
+    \begin{itemize}
+        \item Gratuite
+        \item Disponible dans tous les pays
+    \end{itemize}
+    \item \textbf{Préparation pour la soumission:}
+    \begin{itemize}
+        \item Section "Informations sur la version"
+        \item Nouveautés: "Première version de PipoMarket"
+        \item Copyright: "2025 PipoMarket"
+    \end{itemize}
+    \item Cliquez \textbf{"Envoyer pour examen"}
+\end{enumerate}
+
+\subsubsection{Attente de la review}
+
+\begin{itemize}
+    \item ⏱️ \textbf{1 à 2 semaines} en moyenne (parfois moins)
+    \item Statut visible dans App Store Connect
+    \item Apple peut demander des clarifications (répondez rapidement)
+\end{itemize}
+
+\subsection{Problèmes courants}
+
+\subsubsection{Build échoue: Invalid bundle identifier}
+
+\textbf{Solution:} Vérifiez que \texttt{bundleIdentifier} (iOS) et \texttt{package} (Android) dans \texttt{app.json} sont corrects et uniques.
+
+\subsubsection{Screenshots mauvaises dimensions}
+
+\textbf{Solution:} Utilisez exactement les dimensions requises. Pas d'approximation!
+
+\subsubsection{Missing privacy policy}
+
+\textbf{Solution:} Vous DEVEZ avoir une URL accessible publiquement avec votre politique de confidentialité.
+
+\subsubsection{Build très long (>1h)}
+
+\textbf{Solution:} Normal parfois. Vérifiez sur expo.dev que le build n'a pas échoué.
+
+\newpage
+
+% =====================================================
+% PARTIE 3: TEMPLATES
+% =====================================================
+
+\section{Templates - Textes Prêts à Copier}
+
+\subsection{Play Store}
+
+\subsubsection{Description courte (80 caractères max)}
+
+\begin{tcolorbox}[colback=green!5!white,colframe=green!75!black]
+Marketplace camerounaise - Découvrez et soutenez les startups locales
+\end{tcolorbox}
+
+\subsubsection{Description complète}
+
+\begin{tcolorbox}[colback=green!5!white,colframe=green!75!black]
+\small
+🛍️ PipoMarket - La marketplace qui met en valeur les startups camerounaises
+
+Découvrez des produits uniques créés par des entrepreneurs locaux passionnés. PipoMarket connecte les startups camerounaises avec leurs clients, facilitant l'achat et la promotion de produits locaux.
+
+✨ FONCTIONNALITÉS
+
+🏪 Pour les acheteurs:
+• Parcourez des centaines de produits de startups locales
+• Commandez facilement avec livraison à domicile
+• Payez via Mobile Money (Orange Money, MTN)
+• Suivez vos commandes en temps réel
+• Découvrez de nouvelles startups chaque jour
+
+🚀 Pour les startups:
+• Créez votre boutique en quelques minutes
+• Gérez vos produits et stocks
+• Recevez des commandes instantanément
+• 3 formules d'abonnement adaptées à vos besoins
+• Dashboard complet pour suivre vos ventes
+
+💳 PAIEMENT SIMPLE
+
+Paiement sécurisé via Mobile Money:
+• Orange Money
+• MTN Mobile Money
+
+📦 CATÉGORIES
+
+• Mode \& Accessoires
+• Alimentation \& Boissons
+• Technologie
+• Artisanat
+• Beauté \& Cosmétiques
+• Et bien plus...
+
+🇨🇲 100\% CAMEROUNAIS
+
+PipoMarket est fier de soutenir l'entrepreneuriat local. Chaque achat aide une startup camerounaise à grandir.
+
+Téléchargez maintenant et rejoignez le mouvement \#ConsommerLocal 🇨🇲🔥
+
+---
+
+📧 Support: support@pipomarket.com
+
+🌐 Site web: https://pipomarket.com
+\end{tcolorbox}
+
+\subsection{App Store}
+
+\subsubsection{Nom de l'app (30 caractères max)}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black]
+PipoMarket
+\end{tcolorbox}
+
+\subsubsection{Sous-titre (30 caractères max)}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black]
+Marketplace Camerounaise
+\end{tcolorbox}
+
+\subsubsection{Texte promotionnel (170 caractères max)}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black]
+Découvrez et soutenez les startups camerounaises. Achetez local, payez via Mobile Money. Rejoignez le mouvement \#ConsommerLocal 🇨🇲
+\end{tcolorbox}
+
+\subsubsection{Mots-clés (100 caractères max)}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black]
+marketplace,cameroun,startup,shopping,local,cameroon,artisan,entrepreneur,mobile money
+\end{tcolorbox}
+
+\subsubsection{Nouveautés de cette version}
+
+\begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black]
+🎉 Première version de PipoMarket!
+
+• Marketplace complète pour startups camerounaises
+• Paiement Mobile Money (Orange, MTN)
+• Gestion de boutique pour entrepreneurs
+• Système de commandes et livraison
+• 3 formules d'abonnement startup
+
+Bienvenue sur PipoMarket! 🇨🇲
+\end{tcolorbox}
+
+\subsection{Politique de confidentialité}
+
+\subsubsection{Template complet}
+
+\begin{tcolorbox}[colback=yellow!5!white,colframe=yellow!75!black,title=À mettre sur pipomarket.com/privacy]
+\scriptsize
+
+\textbf{POLITIQUE DE CONFIDENTIALITÉ - PIPOMARKET}
+
+\textbf{Dernière mise à jour:} [Insère la date d'aujourd'hui]
+
+Chez PipoMarket, nous respectons votre vie privée et nous nous engageons à protéger vos données personnelles.
+
+\textbf{1. Informations que nous collectons}
+
+Informations fournies par vous:
+• Compte utilisateur: Nom, prénom, adresse email, numéro de téléphone
+• Profil startup: Nom de l'entreprise, description, catégorie, logo
+• Commandes: Adresse de livraison, historique d'achats
+• Paiements: Informations de transaction Mobile Money
+
+Informations collectées automatiquement:
+• Données d'utilisation: Pages visitées, interactions
+• Données techniques: Type d'appareil, système d'exploitation, IP
+
+\textbf{2. Comment nous utilisons vos informations}
+
+• Traiter vos commandes et gérer les livraisons
+• Vous contacter concernant vos achats
+• Améliorer nos services
+• Prévenir la fraude
+• Envoyer des notifications (avec consentement)
+
+\textbf{3. Partage de vos informations}
+
+Nous ne vendons jamais vos données. Nous les partageons uniquement avec:
+• Les startups vendeurs (pour traiter commandes)
+• Services de paiement (Orange Money, MTN)
+• Prestataires techniques (Firebase/Google Cloud)
+• Autorités légales (si requis par la loi)
+
+\textbf{4. Sécurité de vos données}
+
+• Stockage sécurisé sur Firebase (Google Cloud)
+• Connexions chiffrées (HTTPS/SSL)
+• Accès restreint et contrôlé
+
+\textbf{5. Conservation des données}
+
+• Compte actif: Tant que votre compte existe
+• Historique commandes: 5 ans
+• Données paiement: Durée minimale requise
+
+\textbf{6. Vos droits}
+
+Vous avez le droit de:
+• Accéder à vos données
+• Rectifier vos informations
+• Supprimer votre compte
+• Exporter vos données
+• Retirer votre consentement
+
+Pour exercer ces droits: privacy@pipomarket.com
+
+\textbf{7. Contact}
+
+📧 Email: privacy@pipomarket.com
+
+📧 Support: support@pipomarket.com
+
+🌐 Site web: https://pipomarket.com
+
+© 2025 PipoMarket. Tous droits réservés.
+\end{tcolorbox}
+
+\subsection{Informations de contact}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Type} & \textbf{Valeur} \\
+\hline
+Email support & support@pipomarket.com \\
+Email privacy & privacy@pipomarket.com \\
+Site web & https://pipomarket.com \\
+URL privacy policy & https://pipomarket.com/privacy \\
+URL support & https://pipomarket.com/support \\
+Copyright & © 2025 PipoMarket \\
+\hline
+\end{tabular}
+\caption{Informations de contact pour les stores}
+\end{table}
+
+\subsection{Informations techniques}
+
+\subsubsection{Android (Play Store)}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Champ} & \textbf{Valeur} \\
+\hline
+Package name & com.pipomarket.app \\
+Version & 1.0.0 \\
+Version code & 1 \\
+Minimum SDK & 21 (Android 5.0) \\
+Target SDK & 34 (Android 14) \\
+\hline
+\end{tabular}
+\caption{Informations techniques Android}
+\end{table}
+
+\subsubsection{iOS (App Store)}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Champ} & \textbf{Valeur} \\
+\hline
+Bundle Identifier & com.pipomarket.app \\
+Version & 1.0.0 \\
+Build Number & 1 \\
+Minimum iOS version & 13.0 \\
+\hline
+\end{tabular}
+\caption{Informations techniques iOS}
+\end{table}
+
+\newpage
+
+% =====================================================
+% PARTIE 4: AIDE ET SUPPORT
+% =====================================================
+
+\section{Aide et Support}
+
+\subsection{Ressources utiles}
+
+\begin{itemize}
+    \item \textbf{Expo Dashboard:} \url{https://expo.dev}
+    \item \textbf{Play Console:} \url{https://play.google.com/console}
+    \item \textbf{App Store Connect:} \url{https://appstoreconnect.apple.com}
+    \item \textbf{Documentation EAS:} \url{https://docs.expo.dev/build/introduction/}
+    \item \textbf{Play Console Help:} \url{https://support.google.com/googleplay/android-developer/}
+    \item \textbf{App Store Help:} \url{https://developer.apple.com/support/app-store-connect/}
+\end{itemize}
+
+\subsection{Timeline réaliste}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Étape} & \textbf{Temps} \\
+\hline
+Créer comptes développeurs & 30 min \\
+Préparer assets (screenshots, textes) & 2-3 heures \\
+Build Android & 30 min \\
+Remplir fiche Play Store & 1 heure \\
+Build iOS & 30 min \\
+Remplir fiche App Store & 1 heure \\
+\hline
+\textbf{TOTAL travail actif} & \textbf{~6 heures} \\
+\hline
+\hline
+Review Play Store & 3-7 jours \\
+Review App Store & 1-2 semaines \\
+\hline
+\textbf{TOTAL jusqu'à publication} & \textbf{1-2 semaines} \\
+\hline
+\end{tabular}
+\caption{Timing réaliste complet}
+\end{table}
+
+\subsection{Commandes récapitulatives}
+
+Voici TOUTES les commandes dans l'ordre:
+
+\begin{lstlisting}[language=bash,caption={Commandes complètes pour publication}]
+# 1. Installation EAS CLI
+npm install -g eas-cli
+
+# 2. Connexion a Expo
+eas login
+
+# 3. Initialisation du projet
+eas init
+
+# 4. Build Android
+eas build --platform android --profile production
+
+# 5. Build iOS (apres Android lance)
+eas build --platform ios --profile production
+
+# 6. Verifier les builds
+# Allez sur: https://expo.dev
+\end{lstlisting}
+
+\subsection{Conseils finaux}
+
+\begin{enumerate}
+    \item \textbf{Faites Android d'abord} - Plus simple, review plus rapide
+    \item \textbf{Testez TOUT avant de soumettre} - Une rejection retarde de plusieurs jours
+    \item \textbf{Préparez tous les assets AVANT} de commencer les builds
+    \item \textbf{Répondez vite} aux questions de Google/Apple
+    \item \textbf{Screenshots = super important} - Montrez les meilleures fonctionnalités
+    \item \textbf{Description = vente} - Expliquez pourquoi télécharger votre app
+\end{enumerate}
+
+\newpage
+
+% =====================================================
+% CONCLUSION
+% =====================================================
+
+\section{Conclusion}
+
+\subsection{Récapitulatif}
+
+\begin{tcolorbox}[colback=green!10!white,colframe=green!75!black,title=🎯 Objectif]
+Publier PipoMarket sur Play Store et App Store en 1-2 semaines
+\end{tcolorbox}
+
+\textbf{Budget total:} 124\$ (25\$ + 99\$)
+
+\textbf{Temps de travail:} ~6 heures
+
+\textbf{Résultat:} Application disponible mondialement sur les deux principales plateformes mobiles
+
+\subsection{Prochaines étapes}
+
+\begin{enumerate}
+    \item \textbf{Aujourd'hui}: Lire ce guide en entier
+    \item \textbf{Demain matin}: Créer les comptes développeurs
+    \item \textbf{Demain midi}: Préparer les assets
+    \item \textbf{Demain après-midi}: Lancer les builds et soumettre
+    \item \textbf{Dans 1-2 semaines}: Applications en ligne!
+\end{enumerate}
+
+\begin{center}
+\Large\textbf{Bonne chance! 🚀}
+
+\vspace{0.5cm}
+
+\textit{PipoMarket - Made in Cameroon 🇨🇲}
+\end{center}
+
+\end{document}
