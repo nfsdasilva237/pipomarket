@@ -137,26 +137,39 @@ export const subscriptionService = {
         collection(db, 'subscriptions'),
         where('startupId', '==', startupId)
       );
-      
+
       const snapshot = await getDocs(q);
-      
+
       if (snapshot.empty) {
         return { success: false, error: 'Aucun abonnement trouvé' };
       }
 
       const subscriptionDoc = snapshot.docs[0];
+      const subscriptionData = subscriptionDoc.data();
+
+      // Support ancien système (planId/planName) ET nouveau système (selectedPlanId/currentPlanName)
+      const planKey = subscriptionData.selectedPlanId || subscriptionData.planId || 'starter';
+      const plan = SUBSCRIPTION_PLANS[planKey.toUpperCase()];
+
       const subscription = {
         id: subscriptionDoc.id,
-        ...subscriptionDoc.data(),
+        ...subscriptionData,
+        // Propriétés calculées pour compatibilité
+        currentPlanName: subscriptionData.currentPlanName || subscriptionData.planName || plan.name,
+        selectedPlanName: subscriptionData.selectedPlanName || subscriptionData.planName || plan.name,
+        selectedPlanId: subscriptionData.selectedPlanId || subscriptionData.planId || planKey,
+        currentFeatures: subscriptionData.currentFeatures || subscriptionData.features || plan.features,
+        isActive: subscriptionData.isActive !== undefined ? subscriptionData.isActive : (subscriptionData.status === 'trial' || subscriptionData.status === 'active'),
       };
 
       // Vérifier si abonnement expiré
       const now = new Date();
-      const endDate = subscription.currentPeriodEnd.toDate();
-      
+      const endDate = subscription.currentPeriodEnd?.toDate ? subscription.currentPeriodEnd.toDate() : new Date();
+
       if (now > endDate && subscription.status !== 'expired') {
         await subscriptionService.expireSubscription(subscription.id);
         subscription.status = 'expired';
+        subscription.isActive = false;
       }
 
       return { success: true, subscription };
@@ -189,7 +202,7 @@ export const subscriptionService = {
       const productsSnapshot = await getDocs(productsQ);
       const currentProducts = productsSnapshot.size;
 
-      const maxProducts = subscription.features.maxProducts;
+      const maxProducts = subscription.currentFeatures?.maxProducts || subscription.features?.maxProducts || 10;
       
       if (currentProducts >= maxProducts) {
         return {
@@ -227,7 +240,7 @@ export const subscriptionService = {
       }
 
       // Compter commandes du mois actuel
-      const periodStart = subscription.currentPeriodStart.toDate();
+      const periodStart = subscription.currentPeriodStart?.toDate ? subscription.currentPeriodStart.toDate() : new Date();
       const ordersQ = query(
         collection(db, 'orders'),
         where('startupId', '==', startupId),
@@ -236,7 +249,7 @@ export const subscriptionService = {
       const ordersSnapshot = await getDocs(ordersQ);
       const currentOrders = ordersSnapshot.size;
 
-      const maxOrders = subscription.features.maxOrders;
+      const maxOrders = subscription.currentFeatures?.maxOrders || subscription.features?.maxOrders || 100;
       
       if (currentOrders >= maxOrders) {
         return {
@@ -441,7 +454,7 @@ export const subscriptionService = {
   getSubscriptionStats: async (startupId) => {
     try {
       const subResult = await subscriptionService.getSubscription(startupId);
-      
+
       if (!subResult.success) {
         return { success: false, error: 'Aucun abonnement' };
       }
@@ -457,7 +470,7 @@ export const subscriptionService = {
       const productsCount = productsSnapshot.size;
 
       // Compter commandes du mois
-      const periodStart = subscription.currentPeriodStart.toDate();
+      const periodStart = subscription.currentPeriodStart?.toDate ? subscription.currentPeriodStart.toDate() : new Date();
       const ordersQ = query(
         collection(db, 'orders'),
         where('startupId', '==', startupId),
@@ -468,23 +481,27 @@ export const subscriptionService = {
 
       // Calculer jours restants
       const now = new Date();
-      const endDate = subscription.currentPeriodEnd.toDate();
-      const daysRemaining = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+      const endDate = subscription.currentPeriodEnd?.toDate ? subscription.currentPeriodEnd.toDate() : new Date();
+      const daysRemaining = Math.max(0, Math.ceil((endDate - now) / (1000 * 60 * 60 * 24)));
 
       return {
         success: true,
         stats: {
-          plan: subscription.planName,
+          currentPlan: subscription.currentPlanName,
+          selectedPlan: subscription.selectedPlanName,
           status: subscription.status,
-          productsUsed: productsCount,
-          productsMax: subscription.features.maxProducts,
-          productsPercentage: (productsCount / subscription.features.maxProducts) * 100,
-          ordersUsed: ordersCount,
-          ordersMax: subscription.features.maxOrders,
-          ordersPercentage: (ordersCount / subscription.features.maxOrders) * 100,
-          daysRemaining,
-          nextBillingDate: subscription.nextBillingDate?.toDate(),
+          isActive: subscription.isActive,
           isTrial: subscription.status === 'trial',
+          productsUsed: productsCount,
+          productsMax: subscription.currentFeatures.maxProducts,
+          productsPercentage: (productsCount / subscription.currentFeatures.maxProducts) * 100,
+          ordersUsed: ordersCount,
+          ordersMax: subscription.currentFeatures.maxOrders,
+          ordersPercentage: (ordersCount / subscription.currentFeatures.maxOrders) * 100,
+          daysRemaining,
+          trialEndDate: subscription.trialEndDate,
+          currentPeriodEnd: subscription.currentPeriodEnd,
+          nextBillingDate: subscription.nextBillingDate?.toDate ? subscription.nextBillingDate.toDate() : null,
         },
       };
     } catch (error) {
