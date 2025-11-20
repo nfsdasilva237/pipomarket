@@ -146,15 +146,12 @@ export default function OrdersScreen({ navigation }) {
                 </View>
 
                 <View style={styles.orderFooter}>
-                  <View>
+                  <View style={styles.totalContainer}>
                     <Text style={styles.totalLabel}>Total</Text>
                     <Text style={styles.orderTotal}>
                       {order.totalAmount?.toLocaleString()} FCFA
                     </Text>
                   </View>
-                  <TouchableOpacity style={styles.detailsButton}>
-                    <Text style={styles.detailsButtonText}>Détails</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
             ))
@@ -294,12 +291,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   orderFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: '#F2F2F7',
     paddingTop: 12,
+  },
+  totalContainer: {
+    alignItems: 'flex-start',
   },
   totalLabel: {
     fontSize: 12,
@@ -310,16 +307,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#007AFF',
-  },
-  detailsButton: {
-    backgroundColor: '#F2F2F7',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  detailsButtonText: {
-    fontSize: 13,
-    color: '#007AFF',
-    fontWeight: '600',
   },
 });
