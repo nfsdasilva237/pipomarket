@@ -416,7 +416,7 @@ export default function StartupDashboardScreen({ route, navigation }) {
                     onPress={() => navigation.navigate('ManageSubscription', { startupId })}
                   >
                     <Text style={styles.planBadgeText}>
-                      {subscriptionStats.planName || 'STARTER'}
+                      {subscriptionStats.currentPlan || 'STARTER'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -470,7 +470,7 @@ export default function StartupDashboardScreen({ route, navigation }) {
                 </View>
 
                 {/* Bouton Améliorer */}
-                {subscriptionStats.plan !== 'premium' && (
+                {subscriptionStats.currentPlan !== 'Premium' && (
                   <TouchableOpacity
                     style={styles.upgradeButton}
                     onPress={() => navigation.navigate('ManageSubscription', { startupId })}

@@ -196,7 +196,9 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
     );
   }
 
-  const plan = SUBSCRIPTION_PLANS[subscription.planId.toUpperCase()];
+  // Support ancien système (planId) et nouveau système (selectedPlanId)
+  const planKey = subscription.selectedPlanId || subscription.planId || 'starter';
+  const plan = SUBSCRIPTION_PLANS[planKey.toUpperCase()];
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -212,7 +214,7 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
         <View style={[styles.planCard, { borderColor: plan.color }]}>
           <View style={styles.planHeader}>
             <View>
-              <Text style={styles.planName}>{subscription.planName}</Text>
+              <Text style={styles.planName}>{subscription.currentPlanName || plan.name}</Text>
               <Text style={[styles.planBadge, { color: plan.color }]}>
                 {plan.features.badge}
               </Text>
