@@ -131,13 +131,13 @@ export default function HomeScreen({ navigation }) {
         where('available', '==', true),
         limit(20)
       );
-      
+
       const querySnapshot = await getDocs(q);
       const allProducts = [];
-      
+
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        
+
         if (data && data.name && data.price !== undefined) {
           allProducts.push({
             id: doc.id,
@@ -146,13 +146,25 @@ export default function HomeScreen({ navigation }) {
             price: typeof data.price === 'number' ? data.price : 0,
             stock: typeof data.stock === 'number' ? data.stock : 0,
             available: data.available !== false,
+            // Détection produit boosté
+            isBoosted: data.boost?.active === true,
+            boostBadge: data.boost?.badge || null,
           });
         }
       });
 
+      // Séparer produits boostés et normaux
+      const boostedProducts = allProducts.filter(p => p.isBoosted);
+      const normalProducts = allProducts.filter(p => !p.isBoosted);
+
+      // Mélanger les produits normaux avec seed du jour
       const today = new Date().toDateString();
-      const shuffled = shuffleWithSeed(allProducts, today);
-      setRandomProducts(shuffled.slice(0, 6));
+      const shuffledNormal = shuffleWithSeed(normalProducts, today);
+
+      // Produits boostés en premier, puis normaux
+      const finalProducts = [...boostedProducts, ...shuffledNormal].slice(0, 6);
+
+      setRandomProducts(finalProducts);
     } catch (error) {
       console.error('Erreur chargement produits:', error);
     } finally {
@@ -466,6 +478,13 @@ export default function HomeScreen({ navigation }) {
                         })
                       }
                     >
+                      {/* Badge Boost */}
+                      {product.isBoosted && product.boostBadge && (
+                        <View style={styles.boostBadge}>
+                          <Text style={styles.boostBadgeText}>{product.boostBadge}</Text>
+                        </View>
+                      )}
+
                       <View style={styles.productImage}>
                         {isImageUrl ? (
                           <Image
@@ -693,7 +712,9 @@ const styles = StyleSheet.create({
   
   // Products
   productsScroll: { marginHorizontal: -20, paddingHorizontal: 20 },
-  productCard: { width: 140, backgroundColor: 'white', borderRadius: 12, marginRight: 12, padding: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  productCard: { width: 140, backgroundColor: 'white', borderRadius: 12, marginRight: 12, padding: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3, position: 'relative' },
+  boostBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: '#FF9500', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, zIndex: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 5 },
+  boostBadgeText: { fontSize: 10, fontWeight: 'bold', color: 'white' },
   productImage: { width: '100%', height: 100, backgroundColor: '#F2F2F7', borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginBottom: 8, overflow: 'hidden' },
   productImageReal: { width: '100%', height: '100%' },
   productImageText: { fontSize: 48 },
