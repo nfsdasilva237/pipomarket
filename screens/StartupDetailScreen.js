@@ -22,6 +22,7 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BannerAd from '../components/BannerAd';
 import { auth, db } from '../config/firebase';
 
 const { width } = Dimensions.get('window');

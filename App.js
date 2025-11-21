@@ -19,6 +19,8 @@ import AddressesScreen from './screens/AddressesScreen';
 import AdminAddStartupScreen from './screens/AdminAddStartupScreen';
 import AdminBDLOrdersScreen from './screens/AdminBDLOrdersScreen';
 import AdminCreateAmbassadorCodeScreen from './screens/AdminCreateAmbassadorCodeScreen';
+import AdminCreateBanner from './screens/AdminCreateBanner';
+import AdminCreatePartnership from './screens/AdminCreatePartnership';
 import AdminCreateStartupScreen from './screens/AdminCreateStartupScreen';
 import AdminDashboardScreen from './screens/AdminDashboardScreen';
 import AdminLoyaltyDashboardScreen from './screens/AdminLoyaltyDashboardScreen';
@@ -30,6 +32,7 @@ import AdminManageAmbassadorCodesScreen from './screens/AdminManageAmbassadorCod
 import AdminManageCategoriesScreen from './screens/AdminManageCategoriesScreen';
 import AdminManagePromoCodesScreen from './screens/AdminManagePromoCodesScreen';
 import AdminManageStartupCodesScreen from './screens/AdminManageStartupCodesScreen';
+import AdminSetStartupOfMonth from './screens/AdminSetStartupOfMonth';
 import AdminSubscriptionsScreen from './screens/AdminSubscriptionsScreen';
 import AmbassadorDashboardScreen from './screens/AmbassadorDashboardScreen';
 import BDLMyOrdersScreen from './screens/BDLMyOrdersScreen';
@@ -492,6 +495,24 @@ export default function App() {
                 headerTintColor: '#007AFF',
               }}
             />
+
+            <Stack.Screen
+  name="AdminCreateBanner"
+  component={AdminCreateBanner}
+  options={{ headerShown: false }}
+/>
+
+<Stack.Screen
+  name="AdminSetStartupOfMonth"
+  component={AdminSetStartupOfMonth}
+  options={{ headerShown: false }}
+/>
+
+<Stack.Screen
+  name="AdminCreatePartnership"
+  component={AdminCreatePartnership}
+  options={{ headerShown: false }}
+/>
 
 
 <Stack.Screen 

@@ -1,4 +1,4 @@
-// screens/AdminDashboardScreen.js - DASHBOARD ADMIN AVEC PERMISSIONS
+// screens/AdminDashboardScreen.js - DASHBOARD ADMIN AVEC MONÉTISATION
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import {
@@ -15,8 +15,12 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { auth } from '../config/firebase';
-import * as adminService from '../utils/adminService'; // ⬅️ CHANGÉ ICI
-import * as ambassadorService from '../utils/ambassadorService'; // ⬅️ CHANGÉ ICI
+import * as adminService from '../utils/adminService';
+import * as advertisingService from '../utils/advertisingService';
+import * as ambassadorService from '../utils/ambassadorService';
+import * as boostService from '../utils/boostService';
+import * as partnershipsService from '../utils/partnershipsService';
+import * as startupOfMonthService from '../utils/startupOfMonthService';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +38,12 @@ export default function AdminDashboardScreen({ navigation }) {
   const [users, setUsers] = useState([]);
   const [promoCodes, setPromoCodes] = useState([]);
   const [ambassadorCodes, setAmbassadorCodes] = useState([]);
+  
+  // Nouveaux états pour monétisation
+  const [bannerCampaigns, setBannerCampaigns] = useState([]);
+  const [startupOfMonth, setStartupOfMonth] = useState(null);
+  const [activeBoosts, setActiveBoosts] = useState([]);
+  const [partnerships, setPartnerships] = useState([]);
 
   useEffect(() => {
     loadDashboard();
@@ -98,12 +108,139 @@ export default function AdminDashboardScreen({ navigation }) {
         const ambassadorCodesData = await ambassadorService.getAllInviteCodes();
         setAmbassadorCodes(ambassadorCodesData);
         break;
+      case 'banners':
+        const campaigns = await advertisingService.getAllCampaigns();
+        setBannerCampaigns(campaigns);
+        break;
+      case 'startupMonth':
+        const currentStartup = await startupOfMonthService.getCurrentStartupOfMonth();
+        setStartupOfMonth(currentStartup);
+        break;
+      case 'boosts':
+        const boosts = await boostService.getAllActiveBoosts();
+        setActiveBoosts(boosts);
+        break;
+      case 'partnerships':
+        const partnerData = await partnershipsService.getAllPartnerships();
+        setPartnerships(partnerData);
+        break;
     }
   };
 
   const onRefresh = () => {
     setRefreshing(true);
     loadDashboard();
+  };
+
+  // Gestion Bannières
+  const handleToggleCampaign = async (campaignId, currentStatus) => {
+    if (!permissions?.manageStartups) {
+      Alert.alert('Permission refusée');
+      return;
+    }
+    const result = await advertisingService.toggleCampaignStatus(campaignId, !currentStatus);
+    if (result.success) {
+      Alert.alert('Succès', `Campagne ${!currentStatus ? 'activée' : 'désactivée'}`);
+      loadTabData('banners');
+    }
+  };
+
+  const handleDeleteCampaign = (campaignId, campaignName) => {
+    if (!permissions?.deleteData) {
+      Alert.alert('Permission refusée');
+      return;
+    }
+    Alert.alert(
+      'Supprimer campagne',
+      `Supprimer "${campaignName}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await advertisingService.deleteCampaign(campaignId);
+            if (result.success) {
+              Alert.alert('Succès', 'Campagne supprimée');
+              loadTabData('banners');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Gestion Startup du Mois
+  const handleSetStartupOfMonth = () => {
+    if (!permissions?.manageStartups) {
+      Alert.alert('Permission refusée');
+      return;
+    }
+    navigation.navigate('AdminSetStartupOfMonth');
+  };
+
+  // Gestion Boosts
+  const handleCancelBoost = (productId, productName) => {
+    if (!permissions?.manageProducts) {
+      Alert.alert('Permission refusée');
+      return;
+    }
+    Alert.alert(
+      'Annuler boost',
+      `Annuler le boost de "${productName}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Confirmer',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await boostService.cancelBoost(productId);
+            if (result.success) {
+              Alert.alert('Succès', 'Boost annulé');
+              loadTabData('boosts');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Gestion Partenariats
+  const handleTogglePartnership = async (partnershipId, currentStatus) => {
+    if (!permissions?.manageStartups) {
+      Alert.alert('Permission refusée');
+      return;
+    }
+    const result = await partnershipsService.togglePartnershipStatus(partnershipId, !currentStatus);
+    if (result.success) {
+      Alert.alert('Succès', `Partenariat ${!currentStatus ? 'activé' : 'désactivé'}`);
+      loadTabData('partnerships');
+    }
+  };
+
+  const handleDeletePartnership = (partnershipId, partnerName) => {
+    if (!permissions?.deleteData) {
+      Alert.alert('Permission refusée');
+      return;
+    }
+    Alert.alert(
+      'Supprimer partenariat',
+      `Supprimer le partenariat avec "${partnerName}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await partnershipsService.deletePartnership(partnershipId);
+            if (result.success) {
+              Alert.alert('Succès', 'Partenariat supprimé');
+              loadTabData('partnerships');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleDeleteStartup = (startupId, startupName) => {
@@ -408,6 +545,58 @@ export default function AdminDashboardScreen({ navigation }) {
           </TouchableOpacity>
 
           {permissions?.manageStartups && (
+            <>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'banners' && styles.activeTab]}
+                onPress={() => {
+                  setActiveTab('banners');
+                  loadTabData('banners');
+                }}
+              >
+                <Text style={[styles.tabText, activeTab === 'banners' && styles.activeTabText]}>
+                  📢 Bannières Pub
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'startupMonth' && styles.activeTab]}
+                onPress={() => {
+                  setActiveTab('startupMonth');
+                  loadTabData('startupMonth');
+                }}
+              >
+                <Text style={[styles.tabText, activeTab === 'startupMonth' && styles.activeTabText]}>
+                  🏆 Startup du Mois
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'boosts' && styles.activeTab]}
+                onPress={() => {
+                  setActiveTab('boosts');
+                  loadTabData('boosts');
+                }}
+              >
+                <Text style={[styles.tabText, activeTab === 'boosts' && styles.activeTabText]}>
+                  ⭐ Boosts Actifs
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'partnerships' && styles.activeTab]}
+                onPress={() => {
+                  setActiveTab('partnerships');
+                  loadTabData('partnerships');
+                }}
+              >
+                <Text style={[styles.tabText, activeTab === 'partnerships' && styles.activeTabText]}>
+                  🤝 Partenariats
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {permissions?.manageStartups && (
             <TouchableOpacity
               style={[styles.tab, activeTab === 'startups' && styles.activeTab]}
               onPress={() => {
@@ -599,6 +788,70 @@ export default function AdminDashboardScreen({ navigation }) {
             </View>
 
             <View style={styles.subsection}>
+              <Text style={styles.subsectionTitle}>💰 Actions Monétisation</Text>
+              <View style={styles.actionsGrid}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AdminCreateBanner')}
+                >
+                  <LinearGradient
+                    colors={['#FF6B9D', '#FF5E88']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>📢</Text>
+                    <Text style={styles.actionText}>Créer Bannière</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleSetStartupOfMonth()}
+                >
+                  <LinearGradient
+                    colors={['#FFD700', '#FFA500']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>🏆</Text>
+                    <Text style={styles.actionText}>Startup du Mois</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setActiveTab('boosts');
+                    loadTabData('boosts');
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#FF9500', '#FF8000']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>⭐</Text>
+                    <Text style={styles.actionText}>Gérer Boosts</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('AdminCreatePartnership')}
+                >
+                  <LinearGradient
+                    colors={['#4ECDC4', '#44B8B1']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>🤝</Text>
+                    <Text style={styles.actionText}>Créer Partenariat</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.subsection}>
               <Text style={styles.subsectionTitle}>⚡ Actions Rapides</Text>
               <View style={styles.actionsGrid}>
                 {permissions?.manageStartups && (
@@ -708,35 +961,35 @@ export default function AdminDashboardScreen({ navigation }) {
                 )}
 
                 {permissions?.manageStartups && (
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate('AdminLoyaltyDashboard')}
-                  >
-                    <LinearGradient
-                      colors={['#c7e92fff', '#88ea1fff']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.actionCard}
+                  <>
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('AdminLoyaltyDashboard')}
                     >
-                      <Text style={styles.actionIcon}>⭐</Text>
-                      <Text style={styles.actionText}>Fidélité</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
+                      <LinearGradient
+                        colors={['#c7e92fff', '#88ea1fff']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.actionCard}
+                      >
+                        <Text style={styles.actionIcon}>⭐</Text>
+                        <Text style={styles.actionText}>Fidélité</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
 
-                {permissions?.manageStartups && (
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate('AdminManageCategories')}
-                  >
-                    <LinearGradient
-                      colors={['#C471ED', '#B865E0']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.actionCard}
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('AdminManageCategories')}
                     >
-                      <Text style={styles.actionIcon}>📂</Text>
-                      <Text style={styles.actionText}>Catégories</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                      <LinearGradient
+                        colors={['#C471ED', '#B865E0']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.actionCard}
+                      >
+                        <Text style={styles.actionIcon}>📂</Text>
+                        <Text style={styles.actionText}>Catégories</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </>
                 )}
 
                 {permissions?.manageAmbassadors && (
@@ -788,6 +1041,289 @@ export default function AdminDashboardScreen({ navigation }) {
                 )}
               </View>
             </View>
+          </View>
+        )}
+
+        {/* ==================== BANNIÈRES PUB ==================== */}
+        {activeTab === 'banners' && permissions?.manageStartups && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>📢 Gestion Bannières Publicitaires</Text>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => navigation.navigate('AdminCreateBanner')}
+              >
+                <LinearGradient
+                  colors={['#FF6B9D', '#FF5E88']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.addButtonGradient}
+                >
+                  <Text style={styles.addButtonText}>➕ Créer Campagne</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            {bannerCampaigns.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>📢</Text>
+                <Text style={styles.emptyText}>Aucune campagne publicitaire</Text>
+              </View>
+            ) : (
+              bannerCampaigns.map((campaign) => (
+                <View key={campaign.id} style={styles.itemCard}>
+                  <View style={styles.itemHeader}>
+                    <Text style={styles.itemName}>{campaign.advertiserName}</Text>
+                    <View style={[
+                      styles.statusBadge,
+                      { backgroundColor: campaign.active ? '#10d98c' : '#FF6B9D' }
+                    ]}>
+                      <Text style={styles.statusText}>
+                        {campaign.active ? '✓ Actif' : '✗ Inactif'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.itemDetail}>
+                    📍 Placement: {campaign.placement || 'N/A'}
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    💰 Prix: {campaign.price?.toLocaleString('fr-FR')} FCFA/jour
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    📊 Impressions: {campaign.impressions || 0}
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    🖱️ Clics: {campaign.clicks || 0}
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    📅 Du {campaign.startDate?.toDate?.()?.toLocaleDateString('fr-FR')} au {campaign.endDate?.toDate?.()?.toLocaleDateString('fr-FR')}
+                  </Text>
+                  <View style={styles.itemActions}>
+                    <TouchableOpacity
+                      onPress={() => handleToggleCampaign(campaign.id, campaign.active)}
+                    >
+                      <LinearGradient
+                        colors={campaign.active ? ['#FFA94D', '#FF9A3B'] : ['#10d98c', '#0fd483']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.itemButton}
+                      >
+                        <Text style={styles.itemButtonText}>
+                          {campaign.active ? 'Désactiver' : 'Activer'}
+                        </Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                    {permissions?.deleteData && (
+                      <TouchableOpacity
+                        onPress={() => handleDeleteCampaign(campaign.id, campaign.advertiserName)}
+                      >
+                        <LinearGradient
+                          colors={['#FF6B9D', '#FF5E88']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.itemButton}
+                        >
+                          <Text style={styles.itemButtonText}>Supprimer</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        {/* ==================== STARTUP DU MOIS ==================== */}
+        {activeTab === 'startupMonth' && permissions?.manageStartups && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>🏆 Startup du Mois</Text>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => handleSetStartupOfMonth()}
+              >
+                <LinearGradient
+                  colors={['#FFD700', '#FFA500']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.addButtonGradient}
+                >
+                  <Text style={styles.addButtonText}>✏️ Définir</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            {!startupOfMonth ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>🏆</Text>
+                <Text style={styles.emptyText}>Aucune startup du mois définie</Text>
+                <Text style={styles.emptySubtext}>Cliquez sur "Définir" pour choisir une startup</Text>
+              </View>
+            ) : (
+              <View style={styles.itemCard}>
+                <View style={styles.itemHeader}>
+                  <Text style={styles.itemName}>{startupOfMonth.startupName}</Text>
+                  <View style={styles.statusBadge} style={{ backgroundColor: '#FFD700' }}>
+                    <Text style={styles.statusText}>🏆 Actuel</Text>
+                  </View>
+                </View>
+                <Text style={styles.itemDetail}>
+                  💰 Montant: {startupOfMonth.amount?.toLocaleString('fr-FR')} FCFA
+                </Text>
+                <Text style={styles.itemDetail}>
+                  📅 Mois: {startupOfMonth.month}/{startupOfMonth.year}
+                </Text>
+                <Text style={styles.itemDetail}>
+                  📊 Impressions: {startupOfMonth.impressions || 0}
+                </Text>
+                <Text style={styles.itemDetail}>
+                  🖱️ Clics: {startupOfMonth.clicks || 0}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ==================== BOOSTS ACTIFS ==================== */}
+        {activeTab === 'boosts' && permissions?.manageProducts && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>⭐ Boosts Actifs</Text>
+            {activeBoosts.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>⭐</Text>
+                <Text style={styles.emptyText}>Aucun boost actif</Text>
+              </View>
+            ) : (
+              activeBoosts.map((boost) => (
+                <View key={boost.productId} style={styles.itemCard}>
+                  <View style={styles.itemHeader}>
+                    <Text style={styles.itemName}>{boost.productName}</Text>
+                    <View style={styles.statusBadge} style={{ backgroundColor: '#FF9500' }}>
+                      <Text style={styles.statusText}>{boost.boostType}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.itemDetail}>
+                    🏢 Startup: {boost.startupName}
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    💰 Prix payé: {boost.price?.toLocaleString('fr-FR')} FCFA
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    📅 Expire le: {boost.expiresAt?.toDate?.()?.toLocaleDateString('fr-FR')}
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    👁️ Vues: {boost.views || 0}
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    🖱️ Clics: {boost.clicks || 0}
+                  </Text>
+                  {permissions?.deleteData && (
+                    <View style={styles.itemActions}>
+                      <TouchableOpacity
+                        onPress={() => handleCancelBoost(boost.productId, boost.productName)}
+                      >
+                        <LinearGradient
+                          colors={['#FF6B9D', '#FF5E88']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.itemButton}
+                        >
+                          <Text style={styles.itemButtonText}>Annuler Boost</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        {/* ==================== PARTENARIATS ==================== */}
+        {activeTab === 'partnerships' && permissions?.manageStartups && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>🤝 Gestion Partenariats</Text>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => navigation.navigate('AdminCreatePartnership')}
+              >
+                <LinearGradient
+                  colors={['#4ECDC4', '#44B8B1']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.addButtonGradient}
+                >
+                  <Text style={styles.addButtonText}>➕ Créer</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            {partnerships.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>🤝</Text>
+                <Text style={styles.emptyText}>Aucun partenariat</Text>
+              </View>
+            ) : (
+              partnerships.map((partnership) => (
+                <View key={partnership.id} style={styles.itemCard}>
+                  <View style={styles.itemHeader}>
+                    <Text style={styles.itemName}>{partnership.partnerName}</Text>
+                    <View style={[
+                      styles.statusBadge,
+                      { backgroundColor: partnership.active ? '#10d98c' : '#FF6B9D' }
+                    ]}>
+                      <Text style={styles.statusText}>
+                        {partnership.active ? '✓ Actif' : '✗ Inactif'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.itemDetail}>
+                    📂 Type: {partnership.type || 'N/A'}
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    💰 Commission: {partnership.commissionRate}%
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    💵 Revenus générés: {partnership.totalRevenue?.toLocaleString('fr-FR') || 0} FCFA
+                  </Text>
+                  <Text style={styles.itemDetail}>
+                    📊 Transactions: {partnership.transactionCount || 0}
+                  </Text>
+                  <View style={styles.itemActions}>
+                    <TouchableOpacity
+                      onPress={() => handleTogglePartnership(partnership.id, partnership.active)}
+                    >
+                      <LinearGradient
+                        colors={partnership.active ? ['#FFA94D', '#FF9A3B'] : ['#10d98c', '#0fd483']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.itemButton}
+                      >
+                        <Text style={styles.itemButtonText}>
+                          {partnership.active ? 'Désactiver' : 'Activer'}
+                        </Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                    {permissions?.deleteData && (
+                      <TouchableOpacity
+                        onPress={() => handleDeletePartnership(partnership.id, partnership.partnerName)}
+                      >
+                        <LinearGradient
+                          colors={['#FF6B9D', '#FF5E88']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.itemButton}
+                        >
+                          <Text style={styles.itemButtonText}>Supprimer</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         )}
 
@@ -1320,5 +1856,6 @@ const styles = StyleSheet.create({
   addButtonText: { color: 'white', fontSize: 14, fontWeight: 'bold' },
   emptyState: { backgroundColor: 'white', borderRadius: 24, padding: 48, alignItems: 'center' },
   emptyIcon: { fontSize: 72, marginBottom: 20, opacity: 0.6 },
-  emptyText: { fontSize: 17, fontWeight: '600', color: '#94a3b8', marginBottom: 16 },
+  emptyText: { fontSize: 17, fontWeight: '600', color: '#94a3b8', marginBottom: 8 },
+  emptySubtext: { fontSize: 14, color: '#cbd5e1', textAlign: 'center' },
 });
