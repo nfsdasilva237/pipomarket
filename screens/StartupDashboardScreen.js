@@ -659,13 +659,27 @@ export default function StartupDashboardScreen({ route, navigation }) {
                     <Text style={styles.productStock}>
                       Stock: {product.stock} • {product.available ? '✅ Dispo' : '❌ Indispo'}
                     </Text>
+                    {/* Badge si produit est boosté */}
+                    {product.boost?.active && (
+                      <Text style={styles.boostActiveBadge}>
+                        {product.boost.badge || '⭐ Boosté'}
+                      </Text>
+                    )}
                   </View>
-                  <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={() => navigation.navigate('EditProduct', { productId: product.id })}
-                  >
-                    <Text style={styles.editButtonText}>✏️</Text>
-                  </TouchableOpacity>
+                  <View style={styles.productActions}>
+                    <TouchableOpacity
+                      style={styles.boostButton}
+                      onPress={() => navigation.navigate('BoostProduct', { product })}
+                    >
+                      <Text style={styles.boostButtonText}>⭐ Booster</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() => navigation.navigate('EditProduct', { productId: product.id })}
+                    >
+                      <Text style={styles.editButtonText}>✏️</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             )}
@@ -1010,6 +1024,10 @@ const styles = StyleSheet.create({
   productName: { fontSize: 15, fontWeight: '600', color: '#000', marginBottom: 4 },
   productPrice: { fontSize: 14, fontWeight: 'bold', color: '#007AFF', marginBottom: 2 },
   productStock: { fontSize: 12, color: '#8E8E93' },
+  boostActiveBadge: { fontSize: 11, color: '#FF9500', fontWeight: '600', marginTop: 4 },
+  productActions: { flexDirection: 'column', gap: 8, alignItems: 'center' },
+  boostButton: { backgroundColor: '#FF9500', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  boostButtonText: { color: 'white', fontSize: 12, fontWeight: 'bold' },
   editButton: { width: 36, height: 36, backgroundColor: '#007AFF', borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   editButtonText: { fontSize: 18 },
   

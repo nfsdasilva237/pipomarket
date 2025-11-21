@@ -24,6 +24,7 @@ import CheckoutScreen from './screens/CheckoutScreen';
 import ConversationsListScreen from './screens/ConversationsListScreen';
 import CreatePromoCodeScreen from './screens/CreatePromoCodeScreen';
 import EditProductScreen from './screens/EditProductScreen'; // ← AJOUTER ICI
+import BoostProductScreen from './screens/BoostProductScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import FavoritesScreen from './screens/FavoritesScreen';
 import HelpScreen from './screens/HelpScreen';
@@ -680,11 +681,21 @@ const saveCartToStorage = async () => {
           options={{ headerShown: false }}
         />
 
-        <Stack.Screen 
-  name="EditProduct" 
-  component={EditProductScreen} 
+        <Stack.Screen
+  name="EditProduct"
+  component={EditProductScreen}
   options={{ headerShown: false }}
 />
+
+        <Stack.Screen
+          name="BoostProduct"
+          component={BoostProductScreen}
+          options={{
+            title: '⭐ Booster votre produit',
+            headerStyle: { backgroundColor: 'white' },
+            headerTintColor: '#FF9500',
+          }}
+        />
 
         {/* ÉCRAN AMBASSADOR */}
         <Stack.Screen 
