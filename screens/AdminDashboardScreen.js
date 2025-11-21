@@ -530,6 +530,15 @@ export default function AdminDashboardScreen({ navigation }) {
       <Text style={styles.actionIcon}>🚀</Text>
       <Text style={styles.actionText}>Demandes Boost</Text>
     </TouchableOpacity>
+
+    {/* ✅ NOUVEAU: Bouton Startup du Mois */}
+    <TouchableOpacity
+      style={[styles.actionCard, { backgroundColor: '#FFD700' }]}
+      onPress={() => navigation.navigate('AdminSetStartupOfMonth')}
+    >
+      <Text style={styles.actionIcon}>🏆</Text>
+      <Text style={styles.actionText}>Startup du Mois</Text>
+    </TouchableOpacity>
   </View>
 </View>
           </View>

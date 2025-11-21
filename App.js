@@ -13,6 +13,7 @@ import AddressesScreen from './screens/AddressesScreen';
 import AdminAddStartupScreen from './screens/AdminAddStartupScreen';
 import AdminDashboardScreen from './screens/AdminDashboardScreen';
 import AdminBoostRequestsScreen from './screens/AdminBoostRequestsScreen';
+import AdminSetStartupOfMonth from './screens/AdminSetStartupOfMonth';
 import AdminManageAmbassadorCodesScreen from './screens/AdminManageAmbassadorCodesScreen';
 import AdminManageCategoriesScreen from './screens/AdminManageCategoriesScreen';
 import AdminManagePromoCodesScreen from './screens/AdminManagePromoCodesScreen';
@@ -649,6 +650,12 @@ const saveCartToStorage = async () => {
 <Stack.Screen
   name="AdminBoostRequests"
   component={AdminBoostRequestsScreen}
+  options={{ headerShown: false }}
+/>
+
+<Stack.Screen
+  name="AdminSetStartupOfMonth"
+  component={AdminSetStartupOfMonth}
   options={{ headerShown: false }}
 />
 
