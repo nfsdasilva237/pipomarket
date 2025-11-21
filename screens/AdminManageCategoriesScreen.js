@@ -7,17 +7,19 @@ import {
   FlatList,
   Modal,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../config/firebase';
 import adminService from '../utils/adminService';
 
 export default function AdminManageCategoriesScreen({ navigation }) {
+    const insets = useSafeAreaInsets(); // ← Ajouté pour SafeAreaInsets
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -30,7 +32,40 @@ export default function AdminManageCategoriesScreen({ navigation }) {
   const [categoryDescription, setCategoryDescription] = useState('');
   const [categoryIcon, setCategoryIcon] = useState('📦');
 
-  const iconOptions = ['📦', '💄', '💻', '⚽', '🧁', '👗', '🎨', '📚', '🏠', '🎮', '🎵', '🍔', '🚗', '💊', '🌱'];
+  const iconOptions = [
+    // Alimentation & Boissons
+    '🍔', '🍕', '🍰', '🧁', '🍪', '🍩', '🥐', '🥖', '🥪', '🌮', '🌯', '🥗', '🍝', '🍜', '🍲', '🍱', '🍛', '🍣', '🍤', '🥘',
+    '☕', '🧃', '🧋', '🍹', '🍺', '🍷', '🥤',
+    // Mode & Beauté
+    '👗', '👔', '👕', '👖', '👘', '👙', '👚', '👛', '👜', '👝', '🎒', '👞', '👟', '👠', '👡', '👢', '👑', '💄', '💅', '💍', '💎',
+    '🕶️', '👓', '🧣', '🧤', '🧥', '🧦',
+    // Technologie & Électronique
+    '💻', '🖥️', '⌨️', '🖱️', '📱', '📞', '☎️', '📟', '📠', '📺', '📻', '🎥', '📷', '📸', '📹', '🎬', '💿', '📀', '💾', '💽',
+    '🔌', '🔋', '💡', '🔦',
+    // Sport & Fitness
+    '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🥊', '🥋', '⛳', '⛸️',
+    '🎿', '🛷', '🥌', '🎯', '🪀', '🪁', '🏋️', '🤸',
+    // Maison & Jardin
+    '🏠', '🏡', '🏘️', '🛋️', '🛏️', '🚪', '🪟', '🚿', '🛁', '🚽', '🧻', '🧼', '🧽', '🧴', '🧹', '🧺', '🧯', '🔨', '🔧', '⚒️',
+    '🪛', '🪚', '🔩', '⚙️', '🌱', '🌿', '🌵', '🌴', '🌳', '🌲', '🌾', '🌻', '🌺', '🌹', '🌷', '🌸',
+    // Arts & Loisirs
+    '🎨', '🖌️', '🖍️', '✏️', '🖊️', '🖋️', '✒️', '📝', '📐', '📏', '📌', '📍', '🎭', '🎪', '🎡', '🎢', '🎠', '🎰', '🎲', '🧩',
+    '🧸', '🪅', '🪆', '🎺', '🎸', '🎹', '🎼', '🎵', '🎶', '🎤', '🎧', '📯', '🥁', '🪘', '🎻', '🪕',
+    // Éducation & Bureau
+    '📚', '📖', '📕', '📗', '📘', '📙', '📓', '📔', '📒', '📃', '📜', '📄', '📰', '🗞️', '🔖', '🏷️', '📦', '📫', '📪', '📬',
+    // Santé & Bien-être
+    '💊', '💉', '🩹', '🩺', '🌡️', '🧘', '💆', '💇', '🧖', '🧑‍⚕️',
+    // Véhicules & Transport
+    '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🛵', '🏍️', '🛺', '🚲', '🛴', '🛹',
+    '✈️', '🚁', '🚂', '🚊', '🚇', '⛴️', '🛥️', '⛵',
+    // Commerce & Services
+    '💼', '💰', '💳', '💸', '🏦', '🏪', '🏬', '🛒', '🛍️', '🎁', '🎀', '🪙', '💲',
+    // Animaux & Nature
+    '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🦆', '🦅',
+    '🌍', '🌎', '🌏', '⭐', '✨', '⚡', '🔥', '💧', '🌈', '☀️', '🌙',
+    // Autre
+    '🎉', '🎊', '🎈', '🎆', '🎇', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '❤️', '💙', '💚', '💛', '🧡', '💜'
+  ];
 
   useEffect(() => {
     checkAdminAndLoad();
@@ -266,7 +301,7 @@ export default function AdminManageCategoriesScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -326,23 +361,35 @@ export default function AdminManageCategoriesScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
+            {/* ✅ SCROLLVIEW AJOUTÉ ICI */}
+            <ScrollView 
+              style={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               {/* ICÔNE */}
               <Text style={styles.label}>Icône</Text>
-              <View style={styles.iconGrid}>
-                {iconOptions.map((icon) => (
-                  <TouchableOpacity
-                    key={icon}
-                    style={[
-                      styles.iconOption,
-                      categoryIcon === icon && styles.iconOptionSelected,
-                    ]}
-                    onPress={() => setCategoryIcon(icon)}
-                  >
-                    <Text style={styles.iconOptionText}>{icon}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <ScrollView
+                horizontal={false}
+                nestedScrollEnabled={true}
+                style={styles.iconGridContainer}
+                showsVerticalScrollIndicator={true}
+              >
+                <View style={styles.iconGrid}>
+                  {iconOptions.map((icon) => (
+                    <TouchableOpacity
+                      key={icon}
+                      style={[
+                        styles.iconOption,
+                        categoryIcon === icon && styles.iconOptionSelected,
+                      ]}
+                      onPress={() => setCategoryIcon(icon)}
+                    >
+                      <Text style={styles.iconOptionText}>{icon}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
 
               {/* NOM */}
               <Text style={styles.label}>Nom *</Text>
@@ -364,7 +411,7 @@ export default function AdminManageCategoriesScreen({ navigation }) {
                 multiline
                 numberOfLines={3}
               />
-            </View>
+            </ScrollView>
 
             <View style={styles.modalFooter}>
               <TouchableOpacity
@@ -432,17 +479,28 @@ const styles = StyleSheet.create({
 
   // MODAL
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%' },
+  modalContent: { backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#E5E5EA' },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#000' },
   modalClose: { fontSize: 28, color: '#8E8E93' },
-  modalBody: { padding: 20 },
-  label: { fontSize: 15, fontWeight: 'bold', color: '#000', marginBottom: 8, marginTop: 12 },
-  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
+  modalBody: { maxHeight: 450 }, // ✅ Hauteur limitée
+  label: { fontSize: 15, fontWeight: 'bold', color: '#000', marginBottom: 8, marginTop: 16, paddingHorizontal: 20 },
+  
+  // ✅ NOUVEAU: Container pour la grille d'icônes avec scroll
+  iconGridContainer: {
+    maxHeight: 200, // Limite la hauteur de la grille
+    marginHorizontal: 20,
+    marginBottom: 12,
+  },
+  iconGrid: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 12,
+  },
   iconOption: { width: 50, height: 50, backgroundColor: '#F2F2F7', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#E5E5EA' },
   iconOptionSelected: { borderColor: '#007AFF', backgroundColor: '#E3F2FD' },
   iconOptionText: { fontSize: 28 },
-  input: { backgroundColor: '#F2F2F7', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, marginBottom: 12, borderWidth: 1, borderColor: '#E5E5EA' },
+  input: { backgroundColor: '#F2F2F7', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, marginBottom: 12, borderWidth: 1, borderColor: '#E5E5EA', marginHorizontal: 20 },
   textArea: { height: 80, textAlignVertical: 'top' },
   modalFooter: { flexDirection: 'row', padding: 20, gap: 12, borderTopWidth: 1, borderTopColor: '#E5E5EA' },
   cancelButton: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: '#F2F2F7' },

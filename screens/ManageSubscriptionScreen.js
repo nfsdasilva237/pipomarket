@@ -1,20 +1,20 @@
 // screens/ManageSubscriptionScreen.js - GESTION ABONNEMENT
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { auth } from '../config/firebase';
+import { auth } from '../config/firebase'; // ⬅️ AJOUT DE CETTE LIGNE !!!
 import { SUBSCRIPTION_PLANS, subscriptionService } from '../utils/subscriptionService';
 
 export default function ManageSubscriptionScreen({ navigation, route }) {
-  const startupId = route.params?.startupId || auth.currentUser?.uid;
+  const startupId = route.params?.startupId;
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState(null);
   const [stats, setStats] = useState(null);
@@ -25,6 +25,22 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
 
   const loadSubscription = async () => {
     try {
+      if (!auth.currentUser || !startupId) {
+        console.log('⚠️ Utilisateur non connecté ou startupId manquant');
+        setLoading(false);
+        return;
+      }
+      
+      if (!startupId) {
+        Alert.alert(
+          'Erreur',
+          'Impossible de charger l\'abonnement. Veuillez créer une startup d\'abord.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+        setLoading(false);
+        return;
+      }
+
       const [subResult, statsResult] = await Promise.all([
         subscriptionService.getSubscription(startupId),
         subscriptionService.getSubscriptionStats(startupId),
@@ -45,9 +61,10 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
   };
 
   const handleRenewSubscription = async () => {
+    const price = subscription.currentPrice || subscription.selectedPrice;
     Alert.alert(
       'Renouveler l\'abonnement',
-      `Montant : ${subscription.price.toLocaleString()} FCFA\n\nProcéder au paiement Mobile Money ?`,
+      `Montant : ${price.toLocaleString()} FCFA\n\nProcéder au paiement Mobile Money ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -55,7 +72,7 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
           onPress: async () => {
             setLoading(true);
             try {
-              const result = await subscriptionService.paySubscription(subscription.id);
+              const result = await subscriptionService.createPaymentRequest(subscription.id);
 
               if (!result.success) {
                 throw new Error(result.error);
@@ -63,18 +80,19 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
 
               // Afficher instructions Mobile Money
               Alert.alert(
-                '💳 Paiement Mobile Money',
-                `Composez :\n\n#150*50*VOTRE_NUMERO*${result.amount}#\n\nMontant : ${result.amount.toLocaleString()} FCFA\n\nAprès paiement, confirmez ci-dessous.`,
+                '💳 Instructions de paiement',
+                `Montant : ${result.amount.toLocaleString()} FCFA\n\nMoyens de paiement:\n\n1. Paiement mobile:\n   - Orange Money: +237 698 26 47 41\n   - Mobile Money: +237 652 63 06 37\n\nAprès paiement, envoyez une capture d'écran de votre preuve de paiement à notre WhatsApp:\n+237 620 70 29 01 \n\nVotre abonnement sera activé dans les 24h après vérification.`,
                 [
                   {
-                    text: 'J\'ai payé',
-                    onPress: async () => {
-                      await subscriptionService.confirmSubscriptionPayment(result.paymentId);
-                      Alert.alert('✅ Succès', 'Abonnement renouvelé !');
+                    text: 'OK, compris',
+                    onPress: () => {
+                      Alert.alert(
+                        '✅ Demande enregistrée',
+                        'Votre demande de paiement a été enregistrée. Envoyez votre preuve de paiement sur WhatsApp pour activation rapide.'
+                      );
                       loadSubscription();
                     },
                   },
-                  { text: 'Annuler', style: 'cancel' },
                 ]
               );
             } catch (error) {
@@ -123,16 +141,65 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
     navigation.navigate('Subscription', { startupId, changePlan: true });
   };
 
+  const handlePayNow = async () => {
+    Alert.alert(
+      '💳 Payer maintenant',
+      `Plan choisi: ${subscription.selectedPlanName}\nMontant: ${subscription.selectedPrice?.toLocaleString()} F/mois\n\nEn payant maintenant, vous conservez vos fonctionnalités PREMIUM actuelles et votre abonnement sera activé immédiatement.\n\nProcéder au paiement Mobile Money ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Payer',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const result = await subscriptionService.createPaymentRequest(subscription.id);
+
+              if (!result.success) {
+                throw new Error(result.error);
+              }
+
+              // Afficher instructions Mobile Money
+              Alert.alert(
+                '💳 Instructions de paiement',
+                `Montant : ${result.amount.toLocaleString()} FCFA\n\nMoyens de paiement:\n\n1. Paiement mobile:\n   - Orange Money: +237 698 26 47 41\n   - Mobile Money: +237 652 63 06 37\n\nAprès paiement, envoyez une capture d'écran de votre preuve de paiement à notre WhatsApp:\n+237 620 70 29 01 \n\nVotre abonnement sera activé dans les 24h après vérification.`,
+                [
+                  {
+                    text: 'OK, compris',
+                    onPress: () => {
+                      Alert.alert(
+                        '✅ Demande enregistrée',
+                        'Votre demande de paiement a été enregistrée. Envoyez votre preuve de paiement sur WhatsApp pour activation rapide.'
+                      );
+                      loadSubscription();
+                    },
+                  },
+                ]
+              );
+            } catch (error) {
+              Alert.alert('Erreur', error.message);
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'trial':
         return '#34C759';
       case 'active':
         return '#007AFF';
+      case 'pending_payment':
+        return '#FF9500';
+      case 'suspended':
+        return '#FF3B30';
       case 'expired':
         return '#FF3B30';
       case 'cancelled':
-        return '#FF9500';
+        return '#8E8E93';
       default:
         return '#8E8E93';
     }
@@ -144,6 +211,10 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
         return '🎁 Période d\'essai';
       case 'active':
         return '✅ Actif';
+      case 'pending_payment':
+        return '⏳ Paiement en attente';
+      case 'suspended':
+        return '🔴 Suspendu';
       case 'expired':
         return '❌ Expiré';
       case 'cancelled':
@@ -189,7 +260,9 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
     );
   }
 
-  const plan = SUBSCRIPTION_PLANS[subscription.planId.toUpperCase()];
+  // Support ancien système (planId) et nouveau système (selectedPlanId)
+  const planKey = subscription.selectedPlanId || subscription.planId || 'starter';
+  const plan = SUBSCRIPTION_PLANS[planKey.toUpperCase()];
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -205,7 +278,7 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
         <View style={[styles.planCard, { borderColor: plan.color }]}>
           <View style={styles.planHeader}>
             <View>
-              <Text style={styles.planName}>{subscription.planName}</Text>
+              <Text style={styles.planName}>{subscription.currentPlanName || plan.name}</Text>
               <Text style={[styles.planBadge, { color: plan.color }]}>
                 {plan.features.badge}
               </Text>
@@ -223,11 +296,20 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
           </View>
 
           <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Prix</Text>
+            <Text style={styles.priceLabel}>Prix actuel</Text>
             <Text style={styles.priceValue}>
-              {subscription.price.toLocaleString()} FCFA/mois
+              {subscription.currentPrice === 0 ? 'GRATUIT' : `${subscription.currentPrice?.toLocaleString()} FCFA/mois`}
             </Text>
           </View>
+
+          {subscription.status === 'trial' && subscription.selectedPrice > 0 && (
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Prix après essai</Text>
+              <Text style={[styles.priceValue, { color: '#FF9500' }]}>
+                {subscription.selectedPrice?.toLocaleString()} FCFA/mois
+              </Text>
+            </View>
+          )}
 
           {stats && (
             <View style={styles.daysRow}>
@@ -322,16 +404,52 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
           )}
 
           {subscription.status === 'trial' && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleChangePlan}
-            >
-              <Text style={styles.actionButtonIcon}>⬆️</Text>
-              <Text style={styles.actionButtonText}>Changer de plan</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.actionButtonPrimary]}
+                onPress={handlePayNow}
+              >
+                <Text style={styles.actionButtonIcon}>💳</Text>
+                <Text style={[styles.actionButtonText, { color: 'white' }]}>
+                  Payer maintenant ({subscription.selectedPrice?.toLocaleString()} F)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleChangePlan}
+              >
+                <Text style={styles.actionButtonIcon}>⬆️</Text>
+                <Text style={styles.actionButtonText}>Changer de plan</Text>
+              </TouchableOpacity>
+            </>
           )}
 
-          {(subscription.status === 'expired' || subscription.status === 'cancelled') && (
+          {subscription.status === 'pending_payment' && (
+            <>
+              <View style={styles.warningBox}>
+                <Text style={styles.warningIcon}>⏳</Text>
+                <View style={styles.warningContent}>
+                  <Text style={styles.warningTitle}>Paiement en attente</Text>
+                  <Text style={styles.warningText}>
+                    Votre demande de paiement a été enregistrée. Envoyez votre preuve de paiement sur WhatsApp pour activation rapide.
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.actionButton, styles.actionButtonPrimary]}
+                onPress={handlePayNow}
+              >
+                <Text style={styles.actionButtonIcon}>💳</Text>
+                <Text style={[styles.actionButtonText, { color: 'white' }]}>
+                  Payer maintenant
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {(subscription.status === 'expired' || subscription.status === 'cancelled' || subscription.status === 'suspended') && (
             <TouchableOpacity
               style={[styles.actionButton, styles.actionButtonPrimary]}
               onPress={handleRenewSubscription}
@@ -352,7 +470,6 @@ export default function ManageSubscriptionScreen({ navigation, route }) {
           {renderFeature('🎟️', plan.features.promoCodes > 0 ? `${plan.features.promoCodes === 999999 ? 'Codes promo illimités' : `${plan.features.promoCodes} codes promo`}` : 'Pas de codes promo')}
           {plan.features.featured && renderFeature('⭐', 'Mise en avant')}
           {renderFeature('📊', `Analytics ${plan.features.analytics}`)}
-          {renderFeature('💰', `Commission ${plan.features.commission}%`)}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -556,6 +673,33 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FF9500',
+  },
+  warningIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  warningContent: {
+    flex: 1,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FF9500',
+    marginBottom: 4,
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
   },
   actionButton: {
     flexDirection: 'row',

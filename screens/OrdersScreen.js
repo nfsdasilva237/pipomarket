@@ -1,6 +1,6 @@
 // screens/OrdersScreen.js
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import { collection, getDocs, orderBy, query, where } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -69,6 +69,38 @@ export default function OrdersScreen({ navigation }) {
     }
   };
 
+  const formatOrderDate = (createdAt) => {
+    try {
+      let date;
+
+      // Si c'est un Timestamp Firestore
+      if (createdAt && typeof createdAt.toDate === 'function') {
+        date = createdAt.toDate();
+      }
+      // Si c'est déjà un objet Date
+      else if (createdAt instanceof Date) {
+        date = createdAt;
+      }
+      // Si c'est une string ou un nombre
+      else if (createdAt) {
+        date = new Date(createdAt);
+      }
+      // Par défaut, date actuelle
+      else {
+        date = new Date();
+      }
+
+      return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.error('Erreur formatage date:', error);
+      return 'Date inconnue';
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -104,7 +136,7 @@ export default function OrdersScreen({ navigation }) {
               <View key={order.id} style={styles.orderCard}>
                 <View style={styles.orderHeader}>
                   <Text style={styles.orderId}>
-                    Commande #{order.id.substring(0, 8).toUpperCase()}
+                    Commande #{(order.id || 'N/A').substring(0, 8).toUpperCase()}
                   </Text>
                   <View style={[
                     styles.statusBadge,
@@ -121,11 +153,7 @@ export default function OrdersScreen({ navigation }) {
 
                 <View style={styles.orderInfo}>
                   <Text style={styles.orderDate}>
-                    📅 {order.createdAt?.toDate().toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    })}
+                    📅 {formatOrderDate(order.createdAt)}
                   </Text>
                   <Text style={styles.orderItems}>
                     📦 {order.items?.length || 0} article{order.items?.length > 1 ? 's' : ''}
@@ -146,15 +174,12 @@ export default function OrdersScreen({ navigation }) {
                 </View>
 
                 <View style={styles.orderFooter}>
-                  <View>
+                  <View style={styles.totalContainer}>
                     <Text style={styles.totalLabel}>Total</Text>
                     <Text style={styles.orderTotal}>
-                      {order.totalAmount?.toLocaleString()} FCFA
+                      {(order.totalAmount || order.total || 0).toLocaleString()} FCFA
                     </Text>
                   </View>
-                  <TouchableOpacity style={styles.detailsButton}>
-                    <Text style={styles.detailsButtonText}>Détails</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
             ))
@@ -294,12 +319,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   orderFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: '#F2F2F7',
     paddingTop: 12,
+  },
+  totalContainer: {
+    alignItems: 'flex-start',
   },
   totalLabel: {
     fontSize: 12,
@@ -310,16 +335,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#007AFF',
-  },
-  detailsButton: {
-    backgroundColor: '#F2F2F7',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  detailsButtonText: {
-    fontSize: 13,
-    color: '#007AFF',
-    fontWeight: '600',
   },
 });

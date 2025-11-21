@@ -1,10 +1,11 @@
 // screens/LoyaltyScreen.js
 // Écran de gestion des points de fidélité
 
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,10 +15,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, db } from '../config/firebase';
 import {
-  getUserLevel,
   getLevelProgress,
+  getUserLevel,
   loyaltyConfig,
 } from '../config/loyaltyConfig';
+
 
 export default function LoyaltyScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
@@ -75,6 +77,71 @@ export default function LoyaltyScreen({ navigation }) {
     }
   };
 
+  const handleRedeemReward = async (reward) => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
+
+      // Vérifier que l'utilisateur a assez de points
+      if (userPoints < reward.pointsCost) {
+        Alert.alert('Points insuffisants', 'Vous n\'avez pas assez de points pour cette récompense.');
+        return;
+      }
+
+      Alert.alert(
+        'Échanger des points',
+        `Voulez-vous échanger ${reward.pointsCost} points contre "${reward.name}" ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Confirmer',
+            onPress: async () => {
+              try {
+                // Déduire les points
+                const userRef = doc(db, 'users', userId);
+                const newPoints = userPoints - reward.pointsCost;
+                await updateDoc(userRef, {
+                  loyaltyPoints: newPoints
+                });
+
+                // Créer la récompense dans userRewards
+                await addDoc(collection(db, 'userRewards'), {
+                  userId,
+                  rewardId: reward.id,
+                  rewardName: reward.name,
+                  rewardType: reward.type,
+                  rewardValue: reward.value,
+                  pointsSpent: reward.pointsCost,
+                  used: false,
+                  redeemedAt: serverTimestamp(),
+                });
+
+                // Ajouter dans l'historique
+                await addDoc(collection(db, 'pointsHistory'), {
+                  userId,
+                  points: -reward.pointsCost,
+                  type: 'redeemed',
+                  description: `Échange: ${reward.name}`,
+                  createdAt: serverTimestamp(),
+                });
+
+                Alert.alert('Succès !', `Vous avez échangé ${reward.pointsCost} points contre "${reward.name}". La récompense est disponible dans vos récompenses actives.`);
+
+                // Recharger les données
+                loadLoyaltyData();
+              } catch (error) {
+                console.error('Erreur échange récompense:', error);
+                Alert.alert('Erreur', 'Impossible d\'échanger la récompense. Réessayez.');
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Erreur échange:', error);
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -90,7 +157,7 @@ export default function LoyaltyScreen({ navigation }) {
   const levelProgress = getLevelProgress(userPoints);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* HEADER */}
         <View style={styles.header}>
@@ -218,6 +285,7 @@ export default function LoyaltyScreen({ navigation }) {
                     !canRedeem && styles.redeemButtonDisabled,
                   ]}
                   disabled={!canRedeem}
+                  onPress={() => handleRedeemReward(reward)}
                 >
                   <Text
                     style={[

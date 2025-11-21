@@ -3,23 +3,23 @@ import * as ImagePicker from 'expo-image-picker';
 import { deleteDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { db } from '../config/firebase';
-
 export default function EditProductScreen({ navigation, route }) {
   const { productId } = route.params;
+  const insets = useSafeAreaInsets();
   
   const [product, setProduct] = useState(null);
   const [productName, setProductName] = useState('');
@@ -234,7 +234,7 @@ export default function EditProductScreen({ navigation, route }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -387,7 +387,7 @@ export default function EditProductScreen({ navigation, route }) {
             <Text style={styles.deleteButtonText}>Supprimer le produit</Text>
           </TouchableOpacity>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

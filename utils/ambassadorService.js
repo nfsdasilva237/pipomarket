@@ -7,9 +7,10 @@ export const ambassadorService = {
   // VÉRIFIER CODE INVITATION AMBASSADEUR
   verifyAmbassadorCode: async (code) => {
     try {
-      if (!code || !code.match(/^AMB-\d{5}$/)) {
-        return false;
-      }
+    // ✅ NOUVEAU: Accepte lettres ET chiffres
+    if (!code || !code.match(/^AMB-[A-Z0-9]{5}$/)) {
+      return false;
+    }
 
       const codesRef = collection(db, 'ambassadorInviteCodes');
       const q = query(codesRef, where('code', '==', code), where('used', '==', false));
@@ -23,12 +24,16 @@ export const ambassadorService = {
   },
   
   // GÉNÉRER CODE AMBASSADEUR UNIQUE
-  generateAmbassadorCode: () => {
-    const prefix = 'AMB';
-    const random = Math.floor(10000 + Math.random() * 90000);
-    return `${prefix}-${random}`;
-  },
-
+generateAmbassadorCode: () => {
+  const prefix = 'AMB';
+  // ✅ NOUVEAU: Génère avec lettres
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let random = '';
+  for (let i = 0; i < 5; i++) {
+    random += letters.charAt(Math.floor(Math.random() * letters.length));
+  }
+  return `${prefix}-${random}`;
+},
   // ✅ MARQUER CODE INVITATION COMME UTILISÉ
   markInviteCodeAsUsed: async (code, userId, userEmail) => {
     try {
@@ -407,6 +412,31 @@ export const ambassadorService = {
     } catch (error) {
       console.error('Erreur récupération codes:', error);
       throw error;
+    }
+  },
+
+  // SUPPRIMER UN CODE D'INVITATION (ADMIN)
+  deleteInviteCode: async (codeId) => {
+    try {
+      const { deleteDoc } = await import('firebase/firestore');
+      await deleteDoc(doc(db, 'ambassadorInviteCodes', codeId));
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur suppression code:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // ACTIVER/DÉSACTIVER UN CODE D'INVITATION (ADMIN)
+  toggleInviteCode: async (codeId, currentStatus) => {
+    try {
+      await updateDoc(doc(db, 'ambassadorInviteCodes', codeId), {
+        disabled: !currentStatus,
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur toggle code:', error);
+      return { success: false, error: error.message };
     }
   },
 

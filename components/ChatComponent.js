@@ -1,454 +1,479 @@
-// components/ChatComponent.js - VERSION CORRIGÉE
-import * as ImagePicker from 'expo-image-picker';
+// components/ChatComponent.js - ✅ AVEC APERÇU PHOTO
 import { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import ImageView from 'react-native-image-viewing';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import chatService from '../utils/chatService';
+import imageService from '../utils/imageService';
 
-export default function ChatComponent({ 
+export default function ChatComponent({
   conversation,
   currentUserId,
-  isStartup,
-  targetUser
+  isStartup = false,
+  targetUser,
 }) {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const scrollViewRef = useRef();
+  const [uploading, setUploading] = useState(false);
+  const flatListRef = useRef(null);
 
-  // ✅ Vérification sécurisée
-  const conversationId = conversation?.id;
-  const otherParticipant = targetUser || { name: 'Utilisateur', id: '' };
+  // ✅ État pour l'aperçu d'image
+  const [imageViewVisible, setImageViewVisible] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [viewableImages, setViewableImages] = useState([]);
 
   useEffect(() => {
-    if (!conversationId) return;
+    if (!conversation?.id) return;
+
+    // Marquer messages comme lus
+    chatService.markMessagesAsRead(conversation.id, currentUserId, isStartup);
 
     // S'abonner aux messages
-    const unsubscribeMessages = chatService.subscribeToConversation(
-      conversationId,
-      (updatedMessages) => {
-        setMessages(updatedMessages);
-        scrollToBottom();
+    const unsubscribe = chatService.subscribeToConversation(
+      conversation.id,
+      (newMessages) => {
+        setMessages(newMessages);
+        // Scroll vers le bas quand nouveaux messages
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
       }
     );
 
-    // Marquer les messages comme lus
-    chatService.markMessagesAsRead(conversationId, currentUserId);
-
-    return () => {
-      unsubscribeMessages();
-    };
-  }, [conversationId, currentUserId]);
-
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-  };
+    return () => unsubscribe();
+  }, [conversation?.id, currentUserId, isStartup]);
 
   const handleSend = async () => {
-    if (!inputText.trim() || sending || !conversationId) return;
-    
+    if (!inputText.trim() || sending) return;
+
+    const messageText = inputText.trim();
+    setInputText('');
     setSending(true);
+
     try {
       const result = await chatService.sendMessage(
-        conversationId,
+        conversation.id,
         currentUserId,
-        inputText.trim(),
+        messageText,
         'text'
       );
 
       if (!result.success) {
-        throw new Error(result.error);
+        Alert.alert('Erreur', 'Impossible d\'envoyer le message');
+        setInputText(messageText);
       }
-
-      setInputText('');
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible d\'envoyer le message');
       console.error('Erreur envoi message:', error);
+      Alert.alert('Erreur', 'Impossible d\'envoyer le message');
+      setInputText(messageText);
     } finally {
       setSending(false);
     }
   };
 
+  // ✅ Envoyer une image
   const handleImagePick = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('📸 Sélection image...');
       
-      if (status !== 'granted') {
-        Alert.alert('Permission refusée', 'Nous avons besoin de votre permission pour accéder à vos photos');
+      const pickResult = await imageService.showImagePicker();
+      
+      if (!pickResult.success || pickResult.cancelled) {
         return;
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
+      console.log('✅ Image sélectionnée:', pickResult.uri);
+      setUploading(true);
 
-      if (!result.canceled && result.assets?.[0]?.uri) {
-        await handleSendImage(result.assets[0].uri);
-      }
-    } catch (error) {
-      console.error('Erreur sélection image:', error);
-      Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
-    }
-  };
-
-  const handleSendImage = async (imageUri) => {
-    if (!conversationId) return;
-    
-    setUploadingImage(true);
-    try {
       const result = await chatService.sendMessage(
-        conversationId,
+        conversation.id,
         currentUserId,
         '',
         'image',
-        imageUri
+        pickResult.uri
       );
 
       if (!result.success) {
-        throw new Error(result.error);
+        Alert.alert('Erreur', result.error || 'Impossible d\'envoyer l\'image');
+      } else {
+        console.log('✅ Image envoyée');
       }
+
+      setUploading(false);
+
     } catch (error) {
+      console.error('❌ Erreur envoi image:', error);
       Alert.alert('Erreur', 'Impossible d\'envoyer l\'image');
-      console.error('Erreur envoi image:', error);
-    } finally {
-      setUploadingImage(false);
+      setUploading(false);
     }
   };
 
-  const formatTime = (date) => {
-    if (!date) return '';
-    return date.toLocaleTimeString('fr-FR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+  // ✅ Ouvrir aperçu image
+  const handleImagePress = (imageUrl) => {
+    // Récupérer toutes les images du chat
+    const allImages = messages
+      .filter(msg => msg.type === 'image' && msg.content)
+      .map(msg => ({ uri: msg.content }));
+
+    // Trouver l'index de l'image cliquée
+    const index = allImages.findIndex(img => img.uri === imageUrl);
+
+    setViewableImages(allImages);
+    setCurrentImageIndex(index >= 0 ? index : 0);
+    setImageViewVisible(true);
   };
 
-  const renderMessage = (message, index) => {
-    const isOwnMessage = message.senderId === currentUserId;
-    const showAvatar = index === 0 || 
-      messages[index - 1]?.senderId !== message.senderId;
+  const renderMessage = ({ item }) => {
+    const isMyMessage = item.senderId === currentUserId;
+    const messageTime = item.timestamp
+      ? new Date(item.timestamp).toLocaleTimeString('fr-FR', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : '';
 
     return (
       <View
-        key={message.id}
         style={[
           styles.messageContainer,
-          isOwnMessage ? styles.ownMessageContainer : styles.otherMessageContainer
+          isMyMessage ? styles.myMessageContainer : styles.theirMessageContainer,
         ]}
       >
-        {!isOwnMessage && showAvatar && (
-          <View style={styles.avatarContainer}>
-            {otherParticipant.avatar ? (
-              <Image 
-                source={{ uri: otherParticipant.avatar }} 
-                style={styles.avatar} 
-              />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarText}>
-                  {/* ✅ FIX: Vérifier que name existe et n'est pas vide */}
-                  {otherParticipant.name && otherParticipant.name.length > 0 
-                    ? otherParticipant.name[0].toUpperCase() 
-                    : '?'}
-                </Text>
-              </View>
-            )}
+        {/* Message texte */}
+        {item.type === 'text' && (
+          <View
+            style={[
+              styles.messageBubble,
+              isMyMessage ? styles.myMessageBubble : styles.theirMessageBubble,
+            ]}
+          >
+            <Text
+              style={[
+                styles.messageText,
+                isMyMessage ? styles.myMessageText : styles.theirMessageText,
+              ]}
+            >
+              {item.content}
+            </Text>
+            <Text
+              style={[
+                styles.messageTime,
+                isMyMessage ? styles.myMessageTime : styles.theirMessageTime,
+              ]}
+            >
+              {messageTime}
+            </Text>
           </View>
         )}
 
-        <View 
-          style={[
-            styles.messageBubble,
-            isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble
-          ]}
-        >
-          {message.type === 'image' ? (
-            <Image
-              source={{ uri: message.content }}
-              style={styles.messageImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <Text 
+        {/* Message image */}
+        {item.type === 'image' && (
+          <TouchableOpacity
+            onPress={() => handleImagePress(item.content)}
+            activeOpacity={0.9}
+          >
+            <View
               style={[
-                styles.messageText,
-                isOwnMessage ? styles.ownMessageText : styles.otherMessageText
+                styles.imageBubble,
+                isMyMessage ? styles.myMessageBubble : styles.theirMessageBubble,
               ]}
             >
-              {message.content}
-            </Text>
-          )}
-          
-          <View style={styles.messageFooter}>
-            <Text style={[
-              styles.messageTime,
-              isOwnMessage ? styles.ownMessageTime : styles.otherMessageTime
-            ]}>
-              {formatTime(message.timestamp)}
-            </Text>
-            {isOwnMessage && (
-              <Text style={styles.messageStatus}>
-                {message.read ? '✓✓' : message.delivered ? '✓' : ''}
-              </Text>
-            )}
-          </View>
-        </View>
+              <Image
+                source={{ uri: item.content }}
+                style={styles.messageImage}
+                resizeMode="cover"
+              />
+              <View style={styles.imageTimeOverlay}>
+                <Text style={styles.imageTimeText}>{messageTime}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
 
-  if (!conversation || !conversationId) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Chargement de la conversation...</Text>
-      </View>
-    );
-  }
-
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.messagesContainer}
-        onContentSizeChange={scrollToBottom}
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {messages.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateIcon}>💬</Text>
-            <Text style={styles.emptyStateText}>
-              Aucun message pour le moment.{'\n'}
-              Commencez la conversation !
-            </Text>
-          </View>
-        ) : (
-          messages.map((message, index) => renderMessage(message, index))
-        )}
-
-        {(sending || uploadingImage) && (
-          <View style={styles.sendingContainer}>
-            <ActivityIndicator size="small" color="#007AFF" />
-            <Text style={styles.sendingText}>
-              {uploadingImage ? 'Envoi de l\'image...' : 'Envoi...'}
-            </Text>
-          </View>
-        )}
-      </ScrollView>
-
-      <View style={styles.inputContainer}>
-        <TouchableOpacity 
-          style={styles.attachButton} 
-          onPress={handleImagePick}
-          disabled={uploadingImage}
-        >
-          <Text style={styles.attachButtonText}>📷</Text>
-        </TouchableOpacity>
-
-        <TextInput
-          style={styles.input}
-          value={inputText}
-          onChangeText={setInputText}
-          placeholder="Votre message..."
-          placeholderTextColor="#8E8E93"
-          multiline
-          maxLength={1000}
+        {/* Liste des messages */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.messagesList}
+          onContentSizeChange={() =>
+            flatListRef.current?.scrollToEnd({ animated: true })
+          }
+          showsVerticalScrollIndicator={false}
         />
 
-        <TouchableOpacity 
-          style={[
-            styles.sendButton,
-            (!inputText.trim() || sending) && styles.sendButtonDisabled
-          ]} 
-          onPress={handleSend}
-          disabled={!inputText.trim() || sending}
-        >
-          <Text style={styles.sendButtonText}>↑</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+        {/* Loader upload */}
+        {uploading && (
+          <View style={styles.uploadingOverlay}>
+            <View style={styles.uploadingBox}>
+              <ActivityIndicator size="large" color="#667eea" />
+              <Text style={styles.uploadingText}>Envoi en cours...</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Input */}
+        <View style={styles.inputContainer}>
+          {/* Bouton image */}
+          <TouchableOpacity
+            style={styles.attachButton}
+            onPress={handleImagePick}
+            disabled={uploading || sending}
+          >
+            <Text style={styles.attachIcon}>📷</Text>
+          </TouchableOpacity>
+
+          {/* Input texte */}
+          <TextInput
+            style={styles.input}
+            placeholder="Votre message..."
+            placeholderTextColor="#999"
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={500}
+            editable={!sending && !uploading}
+          />
+
+          {/* Bouton envoyer */}
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              (!inputText.trim() || sending) && styles.sendButtonDisabled,
+            ]}
+            onPress={handleSend}
+            disabled={!inputText.trim() || sending || uploading}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <Text style={styles.sendIcon}>➤</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* ✅ Aperçu image en plein écran */}
+      <ImageView
+        images={viewableImages}
+        imageIndex={currentImageIndex}
+        visible={imageViewVisible}
+        onRequestClose={() => setImageViewVisible(false)}
+        swipeToCloseEnabled={true}
+        doubleTapToZoomEnabled={true}
+        FooterComponent={({ imageIndex }) => (
+          <View style={styles.imageViewFooter}>
+            <Text style={styles.imageViewCounter}>
+              {imageIndex + 1} / {viewableImages.length}
+            </Text>
+          </View>
+        )}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#F0F2F5',
   },
-  loadingContainer: {
+  keyboardView: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  messagesContainer: {
-    flex: 1,
+  messagesList: {
     padding: 16,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
-  },
-  emptyStateIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyStateText: {
-    fontSize: 15,
-    color: '#8E8E93',
-    textAlign: 'center',
-    lineHeight: 22,
+    paddingBottom: 8,
   },
   messageContainer: {
-    flexDirection: 'row',
     marginBottom: 12,
-    alignItems: 'flex-end',
+    maxWidth: '75%',
   },
-  ownMessageContainer: {
-    justifyContent: 'flex-end',
+  myMessageContainer: {
+    alignSelf: 'flex-end',
   },
-  otherMessageContainer: {
-    justifyContent: 'flex-start',
-  },
-  avatarContainer: {
-    marginRight: 8,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  avatarPlaceholder: {
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+  theirMessageContainer: {
+    alignSelf: 'flex-start',
   },
   messageBubble: {
-    maxWidth: '75%',
-    padding: 12,
     borderRadius: 20,
-    marginBottom: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  ownMessageBubble: {
-    backgroundColor: '#007AFF',
+  myMessageBubble: {
+    backgroundColor: '#667eea',
     borderBottomRightRadius: 4,
   },
-  otherMessageBubble: {
+  theirMessageBubble: {
     backgroundColor: 'white',
     borderBottomLeftRadius: 4,
   },
   messageText: {
-    fontSize: 16,
+    fontSize: 15,
+    lineHeight: 20,
+    marginBottom: 4,
   },
-  ownMessageText: {
+  myMessageText: {
     color: 'white',
   },
-  otherMessageText: {
-    color: '#000',
-  },
-  messageImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 12,
-  },
-  messageFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginTop: 4,
+  theirMessageText: {
+    color: '#333',
   },
   messageTime: {
-    fontSize: 12,
-    marginRight: 4,
+    fontSize: 11,
+    marginTop: 4,
   },
-  ownMessageTime: {
-    color: 'rgba(255, 255, 255, 0.7)',
+  myMessageTime: {
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'right',
   },
-  otherMessageTime: {
-    color: '#8E8E93',
+  theirMessageTime: {
+    color: '#999',
+    textAlign: 'left',
   },
-  messageStatus: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
+
+  // ✅ Styles pour les images
+  imageBubble: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  sendingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
+  messageImage: {
+    width: 220,
+    height: 220,
+    borderRadius: 16,
   },
-  sendingText: {
-    marginLeft: 8,
-    color: '#8E8E93',
-    fontSize: 14,
+  imageTimeOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
+  imageTimeText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+
   inputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
+    alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: 'white',
     borderTopWidth: 1,
     borderTopColor: '#E5E5EA',
   },
   attachButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F0F2F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
-  attachButtonText: {
-    fontSize: 24,
+  attachIcon: {
+    fontSize: 20,
   },
   input: {
     flex: 1,
-    marginHorizontal: 8,
-    padding: 8,
+    backgroundColor: '#F0F2F5',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#333',
     maxHeight: 100,
-    fontSize: 16,
-    color: '#000',
+    marginRight: 8,
   },
   sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#007AFF',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#667eea',
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendButtonDisabled: {
     backgroundColor: '#C7C7CC',
   },
-  sendButtonText: {
+  sendIcon: {
+    fontSize: 18,
     color: 'white',
-    fontSize: 20,
     fontWeight: 'bold',
+  },
+
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  uploadingBox: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  uploadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#667eea',
+  },
+
+  // ✅ Styles pour l'aperçu image
+  imageViewFooter: {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  imageViewCounter: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

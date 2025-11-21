@@ -15,18 +15,16 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    function isAdmin() {
-      return isAuthenticated() && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
-    function isStartupOwner(startupId) {
-      return isAuthenticated() && 
-        get(/databases/$(database)/documents/startups/$(startupId)).data.ownerId == request.auth.uid;
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'admin';
     }
     
     // =====================================
-    // USERS
+    // USERS - Profils utilisateurs
     // =====================================
     match /users/{userId} {
       allow read: if true;
@@ -34,219 +32,321 @@ service cloud.firestore {
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }
+
     
     // =====================================
-    // STARTUPS
+    // STARTUPS - Comptes vendeurs
     // =====================================
     match /startups/{startupId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        resource.data.ownerId == request.auth.uid || isAdmin()
-      );
-      allow delete: if isAuthenticated() && (
-        resource.data.ownerId == request.auth.uid || isAdmin()
-      );
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
     }
     
     // =====================================
-    // PRODUCTS
+    // PRODUCTS - Catalogue produits
     // =====================================
     match /products/{productId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        isStartupOwner(resource.data.startupId) || isAdmin()
-      );
-      allow delete: if isAuthenticated() && (
-        isStartupOwner(resource.data.startupId) || isAdmin()
-      );
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
     }
     
     // =====================================
-    // ORDERS
+    // ORDERS - Commandes clients
     // =====================================
     match /orders/{orderId} {
-      allow read: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
-      allow create: if isAuthenticated() && 
-        request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
+      allow read: if isAuthenticated(); 
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
       allow delete: if isAdmin();
     }
     
     // =====================================
-    // PROMO CODES
+    // BDL ORDERS - Commandes BDL Studio
+    // =====================================
+    match /bdl_orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // BDL SERVICE ORDERS - Services créatifs
+    // =====================================
+    match /bdlServiceOrders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // PROMO CODES - Codes promotionnels
     // =====================================
     match /promoCodes/{promoId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        resource.data.startupId == request.auth.uid || isAdmin()
-      );
-      allow delete: if isAuthenticated() && (
-        resource.data.startupId == request.auth.uid || isAdmin()
-      );
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
     }
     
+    // =====================================
+    // CONVERSATIONS - Messages privés
+    // =====================================
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated(); 
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+      
+      match /messages/{messageId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated();
+        allow delete: if isAdmin();
+      }
+    }
+    
+    // =====================================
+    // MESSAGES - Collection principale
+    // =====================================
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // FAVORITES - Favoris utilisateurs
+    // =====================================
+    match /favorites/{favoriteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+    
+    // =====================================
+    // REVIEWS - Avis et notes
+    // =====================================
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+    
+    // =====================================
+    // NOTIFICATIONS - Notifications push
+    // =====================================
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+    
+    // =====================================
+    // ADDRESSES - Adresses de livraison
+    // =====================================
+    match /addresses/{addressId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+    
+    // =====================================
+    // PAYMENTS - Paiements
+    // =====================================
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // SUBSCRIPTIONS - Abonnements startups ✅
+    // =====================================
+    match /subscriptions/{subscriptionId} {
+      allow read: if isAuthenticated(); 
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // SUBSCRIPTION PAYMENTS - Paiements abonnements
+    // =====================================
+    match /subscriptionPayments/{paymentId} {
+      allow read: if isAuthenticated(); 
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // AMBASSADORS - Comptes ambassadeurs
+    // =====================================
+    match /ambassadors/{ambassadorId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
     // =====================================
     // AMBASSADOR INVITE CODES
     // =====================================
     match /ambassadorInviteCodes/{codeId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin() || (
-        isAuthenticated() && 
-        !resource.data.used && 
-        request.resource.data.used == true && 
-        request.resource.data.usedBy == request.auth.uid
-      );
-      allow delete: if isAdmin();
-    }
-    
-    // =====================================
-    // AUTRES COLLECTIONS
-    // =====================================
-    match /conversations/{conversationId} {
-      allow read: if isAuthenticated() && (
-        request.auth.uid in resource.data.participants || isAdmin()
-      );
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        request.auth.uid in resource.data.participants || isAdmin()
-      );
-      allow delete: if isAdmin();
-    }
-    
-    match /messages/{messageId} {
-      allow read: if isAuthenticated() || isAdmin();
-      allow create: if isAuthenticated() && 
-        request.resource.data.senderId == request.auth.uid;
-      allow update: if false;
-      allow delete: if isAdmin();
-    }
-    
-    match /favorites/{favoriteId} {
-      allow read: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
-      allow create: if isAuthenticated() && 
-        request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
-      allow delete: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
-    }
-    
-    match /reviews/{reviewId} {
       allow read: if true;
-      allow create: if isAuthenticated() && 
-        request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
-      allow delete: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
-    }
-    
-    match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
-      allow delete: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
-    }
-    
-    match /addresses/{addressId} {
-      allow read: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
-      allow create: if isAuthenticated() && 
-        request.resource.data.userId == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
-      allow delete: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid || isAdmin()
-      );
-    }
-    
-    match /adminLogs/{logId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin();
-      allow update, delete: if false;
-    }
-    
-    match /platformSettings/{settingId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    match /reports/{reportId} {
-      allow read: if isAdmin();
-      allow create: if isAuthenticated();
-      allow update: if isAdmin();
+      allow update: if isAuthenticated();
       allow delete: if isAdmin();
     }
 
     // =====================================
-    // PAYMENT SYSTEM
+    // AMBASSADOR EARNINGS - Gains ambassadeurs
     // =====================================
-    match /payments/{paymentId} {
+    match /ambassadorEarnings/{earningId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // AMBASSADOR PAYMENTS - Paiements ambassadeurs
+    // =====================================
+    match /ambassadorPayments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // CATEGORIES - Catégories produits
+    // =====================================
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // STARTUP INVITE CODES - Codes d'accès startups
+    // =====================================
+    match /startupInviteCodes/{codeId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // DEVICE TOKENS - Tokens push notifications
+    // =====================================
+    match /deviceTokens/{tokenId} {
       allow read, write: if isAuthenticated();
     }
 
     // =====================================
-    // AMBASSADOR SYSTEM
+    // POINTS HISTORY - Historique points fidélité
     // =====================================
-    match /ambassadors/{ambassadorId} {
-      // Tout le monde peut lire
+    match /pointsHistory/{historyId} {
       allow read: if isAuthenticated();
-      // Seul l'admin peut écrire
-      allow write: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
     }
 
-    match /ambassadorInviteCodes/{codeId} {
-      // Tout le monde peut lire pour vérification
+    // =====================================
+    // USER REWARDS - Récompenses utilisateurs
+    // =====================================
+    match /userRewards/{rewardId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // ADMIN LOGS - Logs administrateur
+    // =====================================
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // =====================================
+    // PLATFORM SETTINGS - Paramètres plateforme
+    // =====================================
+    match /platformSettings/{settingId} {
       allow read: if true;
-      // Seul l'admin peut créer/modifier/supprimer
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
-    match /ambassadorEarnings/{earningId} {
-      // Ambassador peut lire ses gains, admin peut tout lire
-      allow read: if isAuthenticated() && (
-        resource.data.ambassadorId == request.auth.uid || 
-        isAdmin()
-      );
-      // Seul l'admin peut modifier les gains
-      allow write: if isAdmin();
+    // =====================================
+    // BROADCASTS - Annonces globales
+    // =====================================
+    match /broadcasts/{broadcastId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
     }
 
-    match /ambassadorPayments/{paymentId} {
-      // Ambassador peut voir ses paiements, admin peut tout voir
-      allow read: if isAuthenticated() && (
-        resource.data.ambassadorId == request.auth.uid || 
-        isAdmin()
-      );
-      // Seul l'admin peut créer/modifier les paiements
-      allow write: if isAdmin();
+    // =====================================
+    // NOTIFICATION LOGS - Logs notifications
+    // =====================================
+    match /notificationLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if isAdmin();
     }
-    
-    // RÈGLE PAR DÉFAUT
+
+    // =====================================
+    // REPORTS - Signalements
+    // ====================================
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // ✅ RÈGLES POUR LES FAVORIS
+    match /favorites/{favoriteId} {
+      // Lecture : seulement ses propres favoris
+      allow read: if request.auth != null && 
+                     resource.data.userId == request.auth.uid;
+      
+      // Création : seulement si userId = auth.uid
+      allow create: if request.auth != null && 
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Suppression : seulement ses propres favoris
+      allow delete: if request.auth != null && 
+                       resource.data.userId == request.auth.uid;
+    }
+
+    // =====================================
+    // ✅ RÈGLE PAR DÉFAUT - PERMISSIVE POUR COLLECTIONS NON LISTÉES
+    // =====================================
     match /{document=**} {
-      allow read, write: if false;
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
   }
 }

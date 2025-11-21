@@ -10,11 +10,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from '../config/firebase';
 import ambassadorService from '../utils/ambassadorService';
 
 export default function AmbassadorDashboardScreen({ navigation }) {
+    const insets = useSafeAreaInsets(); // ← Ajouté pour SafeAreaInsets
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [ambassador, setAmbassador] = useState(null);
@@ -99,7 +100,7 @@ export default function AmbassadorDashboardScreen({ navigation }) {
   const paidEarnings = earnings.filter(e => e.status === 'paid');
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+   <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -291,7 +292,7 @@ export default function AmbassadorDashboardScreen({ navigation }) {
           )}
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
       </ScrollView>
     </SafeAreaView>
   );

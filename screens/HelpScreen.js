@@ -1,5 +1,5 @@
 // screens/HelpScreen.js
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   Linking,
@@ -49,21 +49,21 @@ export default function HelpScreen({ navigation }) {
       icon: '📧',
       title: 'Email',
       subtitle: 'support@pipomarket.cm',
-      action: () => Linking.openURL('mailto:support@pipomarket.cm'),
+      action: () => Linking.openURL('mailto:bdlstudio03@gmail.com'),
     },
     {
       id: '2',
       icon: '📱',
       title: 'WhatsApp',
-      subtitle: '+237 6XX XX XX XX',
-      action: () => Linking.openURL('https://wa.me/237600000000'),
+      subtitle: '+237 620 70 29 01',
+      action: () => Linking.openURL('https://wa.me/237620702901'),
     },
     {
       id: '3',
       icon: '📞',
       title: 'Téléphone',
-      subtitle: '+237 6XX XX XX XX',
-      action: () => Linking.openURL('tel:+237600000000'),
+      subtitle: '+237 620 70 29 01',
+      action: () => Linking.openURL('tel:+237620702901'),
     },
   ];
 
@@ -150,22 +150,7 @@ export default function HelpScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Section Liens utiles */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Liens utiles</Text>
-          <TouchableOpacity style={styles.linkCard}>
-            <Text style={styles.linkText}>📜 Conditions d'utilisation</Text>
-            <Text style={styles.linkArrow}>→</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.linkCard}>
-            <Text style={styles.linkText}>🛡️ Politique de confidentialité</Text>
-            <Text style={styles.linkArrow}>→</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.linkCard}>
-            <Text style={styles.linkText}>↩️ Politique de retour</Text>
-            <Text style={styles.linkArrow}>→</Text>
-          </TouchableOpacity>
-        </View>
+        
       </ScrollView>
     </SafeAreaView>
   );

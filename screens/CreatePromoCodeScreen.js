@@ -1,15 +1,15 @@
 // screens/CreatePromoCodeScreen.js - CRÉER CODE PROMO (STARTUP)
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
+  ActivityIndicator,
+  Alert,
   ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
   TextInput,
   TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  Switch,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import promoCodeService from '../utils/promoCodeService';
@@ -87,7 +87,7 @@ export default function CreatePromoCodeScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView style={styles.scrollView}>
         {/* HEADER */}
         <View style={styles.header}>

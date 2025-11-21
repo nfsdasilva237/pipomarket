@@ -1,12 +1,12 @@
-// screens/StartupDashboardScreen.js - ✅ PHASE 1: AVEC BARRES PROGRESSION ABONNEMENT
+// screens/StartupDashboardScreen.js - ✅ AVEC BOOST
+import { LinearGradient } from 'expo-linear-gradient';
+import { signOut } from 'firebase/auth';
 import {
   collection,
   deleteDoc,
   doc,
   getDoc,
   getDocs,
-  limit,
-  orderBy,
   query,
   updateDoc,
   where
@@ -24,7 +24,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { auth, db } from '../config/firebase';
 import { notificationService } from '../utils/notificationService';
 import subscriptionService from '../utils/subscriptionService';
@@ -32,7 +33,34 @@ const { width } = Dimensions.get('window');
 
 export default function StartupDashboardScreen({ route, navigation }) {
   const { startupId: paramStartupId } = route.params || {};
+  const insets = useSafeAreaInsets();
   
+  const handleLogout = async () => {
+    Alert.alert(
+      '👋 Déconnexion',
+      'Voulez-vous vraiment vous déconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Déconnexion',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut(auth);
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            } catch (error) {
+              console.error('Erreur déconnexion:', error);
+              Alert.alert('Erreur', 'Impossible de se déconnecter');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const [startupId, setStartupId] = useState(paramStartupId);
   const [startup, setStartup] = useState(null);
   const [products, setProducts] = useState([]);
@@ -41,8 +69,8 @@ export default function StartupDashboardScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-  // ✅ PHASE 1: Stats abonnement
   const [subscriptionStats, setSubscriptionStats] = useState(null);
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
 
   useEffect(() => {
     loadDashboard();
@@ -58,15 +86,21 @@ export default function StartupDashboardScreen({ route, navigation }) {
   const loadDashboard = async () => {
     try {
       let finalStartupId = paramStartupId;
-      
+
+      if (!auth.currentUser) {
+        console.log('⚠️ Utilisateur non connecté');
+        setLoading(false);
+        return;
+      }
+
       if (!finalStartupId) {
         const q = query(
           collection(db, 'startups'),
           where('ownerId', '==', auth.currentUser.uid)
         );
-        
+
         const querySnapshot = await getDocs(q);
-        
+
         if (querySnapshot.empty) {
           Alert.alert(
             'Aucune startup',
@@ -76,15 +110,14 @@ export default function StartupDashboardScreen({ route, navigation }) {
           setLoading(false);
           return;
         }
-        
+
         const startupDoc = querySnapshot.docs[0];
         finalStartupId = startupDoc.id;
         setStartupId(finalStartupId);
       }
-      
-      // Charger startup
+
       const startupDoc = await getDoc(doc(db, 'startups', finalStartupId));
-      
+
       if (!startupDoc.exists()) {
         Alert.alert('Erreur', 'Startup introuvable');
         setLoading(false);
@@ -93,7 +126,6 @@ export default function StartupDashboardScreen({ route, navigation }) {
 
       setStartup({ id: startupDoc.id, ...startupDoc.data() });
 
-      // Charger produits
       const productsQ = query(
         collection(db, 'products'),
         where('startupId', '==', finalStartupId)
@@ -105,24 +137,30 @@ export default function StartupDashboardScreen({ route, navigation }) {
       }));
       setProducts(productsData);
 
-      // Charger commandes
-      const ordersQ = query(
-        collection(db, 'orders'),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
-      const ordersSnap = await getDocs(ordersQ);
-      const allOrders = ordersSnap.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      const startupOrders = allOrders.filter(order => 
-        order.items && order.items.some(item => item.startupId === finalStartupId)
-      );
-      setOrders(startupOrders);
+      try {
+        const ordersSnap = await getDocs(collection(db, 'orders'));
+        const allOrders = ordersSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
 
-      // Charger codes promo
+        const startupOrders = allOrders
+          .filter(order =>
+            order.items && order.items.some(item => item.startupId === finalStartupId)
+          )
+          .sort((a, b) => {
+            const dateA = a.createdAt?.toDate?.() || new Date(0);
+            const dateB = b.createdAt?.toDate?.() || new Date(0);
+            return dateB - dateA;
+          })
+          .slice(0, 50);
+
+        setOrders(startupOrders);
+      } catch (ordersError) {
+        console.log('⚠️ Impossible de charger les commandes');
+        setOrders([]);
+      }
+
       const promoQ = query(
         collection(db, 'promoCodes'),
         where('startupId', '==', finalStartupId)
@@ -134,14 +172,41 @@ export default function StartupDashboardScreen({ route, navigation }) {
       }));
       setPromoCodes(promosData);
 
-      // ✅ PHASE 1: Charger stats abonnement
+      console.log('📦 Vérification abonnement pour:', finalStartupId);
+      const subCheck = await subscriptionService.getSubscription(finalStartupId);
+
+      if (!subCheck.success) {
+        console.log('⚠️ Aucun abonnement trouvé');
+        setLoading(false);
+
+        Alert.alert(
+          '📦 Choisissez votre plan',
+          'Bienvenue ! Pour accéder à votre dashboard, veuillez d\'abord choisir un plan d\'abonnement.',
+          [
+            {
+              text: 'Choisir mon plan',
+              onPress: () => {
+                navigation.replace('Subscription', {
+                  startupId: finalStartupId,
+                  required: true
+                });
+              }
+            }
+          ],
+          { cancelable: false }
+        );
+        return;
+      }
+
+      console.log('✅ Abonnement trouvé:', subCheck.subscription.currentPlanName);
+
       const statsResult = await subscriptionService.getSubscriptionStats(finalStartupId);
       if (statsResult.success) {
         setSubscriptionStats(statsResult.stats);
       }
 
     } catch (error) {
-      console.error('Erreur chargement:', error);
+      console.error('Erreur chargement dashboard:', error);
       Alert.alert('Erreur', 'Impossible de charger les données');
     } finally {
       setLoading(false);
@@ -154,11 +219,10 @@ export default function StartupDashboardScreen({ route, navigation }) {
     loadDashboard();
   };
 
-  // CALCULS ANALYTICS
   const getTotalRevenue = () => {
     return orders.reduce((sum, order) => {
       const startupItems = order.items?.filter(item => item.startupId === startupId) || [];
-      const startupTotal = startupItems.reduce((itemSum, item) => 
+      const startupTotal = startupItems.reduce((itemSum, item) =>
         itemSum + (item.price * item.quantity), 0
       );
       return sum + startupTotal;
@@ -168,13 +232,13 @@ export default function StartupDashboardScreen({ route, navigation }) {
   const getRevenueToday = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     return orders.filter(order => {
       const orderDate = order.createdAt?.toDate?.() || new Date(order.createdAt);
       return orderDate >= today;
     }).reduce((sum, order) => {
       const startupItems = order.items?.filter(item => item.startupId === startupId) || [];
-      const startupTotal = startupItems.reduce((itemSum, item) => 
+      const startupTotal = startupItems.reduce((itemSum, item) =>
         itemSum + (item.price * item.quantity), 0
       );
       return sum + startupTotal;
@@ -184,13 +248,13 @@ export default function StartupDashboardScreen({ route, navigation }) {
   const getRevenueThisWeek = () => {
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    
+
     return orders.filter(order => {
       const orderDate = order.createdAt?.toDate?.() || new Date(order.createdAt);
       return orderDate >= weekAgo;
     }).reduce((sum, order) => {
       const startupItems = order.items?.filter(item => item.startupId === startupId) || [];
-      const startupTotal = startupItems.reduce((itemSum, item) => 
+      const startupTotal = startupItems.reduce((itemSum, item) =>
         itemSum + (item.price * item.quantity), 0
       );
       return sum + startupTotal;
@@ -199,7 +263,7 @@ export default function StartupDashboardScreen({ route, navigation }) {
 
   const getTopProducts = () => {
     const productSales = {};
-    
+
     orders.forEach(order => {
       order.items?.forEach(item => {
         if (item.startupId === startupId) {
@@ -231,19 +295,18 @@ export default function StartupDashboardScreen({ route, navigation }) {
     return getTotalRevenue() / orders.length;
   };
 
-  // Mise à jour du statut de commande
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       const orderRef = doc(db, 'orders', orderId);
       const orderDoc = await getDoc(orderRef);
-      
+
       if (!orderDoc.exists()) {
         throw new Error('Commande introuvable');
       }
 
       const orderData = orderDoc.data();
       const hasStartupItems = orderData.items?.some(item => item.startupId === startupId);
-      
+
       if (!hasStartupItems) {
         throw new Error('Cette commande ne contient pas de produits de votre startup');
       }
@@ -259,7 +322,7 @@ export default function StartupDashboardScreen({ route, navigation }) {
 
       const notifTitle = getStatusNotificationTitle(newStatus);
       const notifBody = getStatusNotificationBody(newStatus, startup.name);
-      
+
       await notificationService.sendNotificationToUser(
         orderData.userId,
         notifTitle,
@@ -297,7 +360,24 @@ export default function StartupDashboardScreen({ route, navigation }) {
     return bodies[status] || `Le statut de votre commande chez ${startupName} a été mis à jour`;
   };
 
-  // RENDU
+  const getOrderStats = () => {
+    const stats = {
+      all: orders.length,
+      pending: orders.filter(o => o.status === 'pending').length,
+      processing: orders.filter(o => o.status === 'processing').length,
+      shipped: orders.filter(o => o.status === 'shipped').length,
+      delivered: orders.filter(o => o.status === 'delivered').length,
+    };
+    return stats;
+  };
+
+  const getFilteredOrders = () => {
+    if (orderStatusFilter === 'all') {
+      return orders;
+    }
+    return orders.filter(o => o.status === orderStatusFilter);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -334,31 +414,56 @@ export default function StartupDashboardScreen({ route, navigation }) {
   const avgOrder = getAverageOrderValue();
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <LinearGradient
+        colors={['#667eea', '#764ba2']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
           <Text style={styles.backBtn}>←</Text>
         </TouchableOpacity>
+
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle} numberOfLines={1}>
-            {startup.name}
+            🏢 {startup.name}
           </Text>
-          <Text style={styles.headerSubtitle}>Dashboard</Text>
+          <Text style={styles.headerSubtitle}>Dashboard Premium</Text>
         </View>
-        <TouchableOpacity onPress={() => loadDashboard()}>
-          <Text style={styles.refreshBtn}>🔄</Text>
-        </TouchableOpacity>
-      </View>
 
-      <ScrollView 
-        style={styles.content} 
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert(
+              'Menu',
+              'Choisissez une option',
+              [
+                {
+                  text: '🔄 Actualiser',
+                  onPress: () => loadDashboard()
+                },
+                {
+                  text: '🚪 Déconnexion',
+                  onPress: handleLogout,
+                  style: 'destructive'
+                },
+                { text: 'Annuler', style: 'cancel' }
+              ]
+            );
+          }}
+          style={styles.headerButton}
+        >
+          <Text style={styles.refreshBtn}>⋮</Text>
+        </TouchableOpacity>
+      </LinearGradient>
+
+      <ScrollView
+        style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* TABS */}
         <View style={styles.tabsContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <TouchableOpacity
@@ -396,25 +501,22 @@ export default function StartupDashboardScreen({ route, navigation }) {
           </ScrollView>
         </View>
 
-        {/* VUE D'ENSEMBLE */}
         {activeTab === 'overview' && (
           <>
-            {/* ✅ PHASE 1: UTILISATION ABONNEMENT */}
             {subscriptionStats && (
               <View style={styles.section}>
                 <View style={styles.usageHeader}>
                   <Text style={styles.sectionTitle}>📊 Utilisation de votre plan</Text>
                   <TouchableOpacity
                     style={styles.planBadge}
-                    onPress={() => navigation.navigate('ManageSubscription')}
+                    onPress={() => navigation.navigate('ManageSubscription', { startupId })}
                   >
                     <Text style={styles.planBadgeText}>
-                      {subscriptionStats.planName || 'STARTER'}
+                      {subscriptionStats.currentPlan || 'STARTER'}
                     </Text>
                   </TouchableOpacity>
                 </View>
-                
-                {/* Produits */}
+
                 <View style={styles.usageCard}>
                   <View style={styles.usageCardHeader}>
                     <Text style={styles.usageLabel}>📦 Produits</Text>
@@ -438,7 +540,6 @@ export default function StartupDashboardScreen({ route, navigation }) {
                   )}
                 </View>
 
-                {/* Commandes */}
                 <View style={styles.usageCard}>
                   <View style={styles.usageCardHeader}>
                     <Text style={styles.usageLabel}>🛒 Commandes ce mois</Text>
@@ -462,11 +563,10 @@ export default function StartupDashboardScreen({ route, navigation }) {
                   )}
                 </View>
 
-                {/* Bouton Améliorer */}
-                {subscriptionStats.plan !== 'premium' && (
+                {subscriptionStats.currentPlan !== 'Premium' && (
                   <TouchableOpacity
                     style={styles.upgradeButton}
-                    onPress={() => navigation.navigate('ManageSubscription')}
+                    onPress={() => navigation.navigate('ManageSubscription', { startupId })}
                   >
                     <Text style={styles.upgradeButtonIcon}>⬆️</Text>
                     <Text style={styles.upgradeButtonText}>Améliorer mon plan</Text>
@@ -475,38 +575,56 @@ export default function StartupDashboardScreen({ route, navigation }) {
               </View>
             )}
 
-            {/* KPIs PRINCIPAUX */}
             <View style={styles.kpisContainer}>
-              <View style={styles.kpiCard}>
+              <LinearGradient
+                colors={['#11998e', '#38ef7d']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>💰</Text>
                 <Text style={styles.kpiValue}>
                   {totalRevenue.toLocaleString('fr-FR')}
                 </Text>
                 <Text style={styles.kpiLabel}>Revenus totaux (FCFA)</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={styles.kpiCard}>
+              <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>🛒</Text>
                 <Text style={styles.kpiValue}>{orders.length}</Text>
                 <Text style={styles.kpiLabel}>Commandes</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={styles.kpiCard}>
+              <LinearGradient
+                colors={['#f093fb', '#f5576c']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>📦</Text>
                 <Text style={styles.kpiValue}>{products.length}</Text>
                 <Text style={styles.kpiLabel}>Produits</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={styles.kpiCard}>
+              <LinearGradient
+                colors={['#4facfe', '#00f2fe']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.kpiCard}
+              >
                 <Text style={styles.kpiIcon}>📊</Text>
                 <Text style={styles.kpiValue}>
                   {avgOrder.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
                 </Text>
                 <Text style={styles.kpiLabel}>Panier moyen (FCFA)</Text>
-              </View>
+              </LinearGradient>
             </View>
 
-            {/* REVENUS RÉCENTS */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>💸 Revenus récents</Text>
               <View style={styles.revenueCards}>
@@ -525,7 +643,6 @@ export default function StartupDashboardScreen({ route, navigation }) {
               </View>
             </View>
 
-            {/* TOP PRODUITS */}
             {topProducts.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>🏆 Top produits</Text>
@@ -545,7 +662,6 @@ export default function StartupDashboardScreen({ route, navigation }) {
               </View>
             )}
 
-            {/* STOCK FAIBLE */}
             {lowStock.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>⚠️ Stock faible</Text>
@@ -569,47 +685,83 @@ export default function StartupDashboardScreen({ route, navigation }) {
               </View>
             )}
 
-            {/* ACTIONS RAPIDES */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>⚡ Actions rapides</Text>
               <View style={styles.actionsGrid}>
-                <TouchableOpacity
-                  style={[styles.actionCard, { backgroundColor: '#007AFF' }]}
-                  onPress={() => navigation.navigate('AddProduct', { startupId })}
-                >
-                  <Text style={styles.actionIcon}>+</Text>
-                  <Text style={styles.actionText}>Ajouter Produit</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('AddProduct', { startupId })}>
+                  <LinearGradient
+                    colors={['#667eea', '#764ba2']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>+</Text>
+                    <Text style={styles.actionText}>Ajouter Produit</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.actionCard, { backgroundColor: '#34C759' }]}
-                  onPress={() => navigation.navigate('CreatePromoCode')}
-                >
-                  <Text style={styles.actionIcon}>🎁</Text>
-                  <Text style={styles.actionText}>Code Promo</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('CreatePromoCode')}>
+                  <LinearGradient
+                    colors={['#11998e', '#38ef7d']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>🎁</Text>
+                    <Text style={styles.actionText}>Code Promo</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.actionCard, { backgroundColor: '#FF9500' }]}
-                  onPress={() => navigation.navigate('StartupMessages')}
-                >
-                  <Text style={styles.actionIcon}>💬</Text>
-                  <Text style={styles.actionText}>Messages</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('StartupMessages', { startupId })}>
+                  <LinearGradient
+                    colors={['#f093fb', '#f5576c']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>💬</Text>
+                    <Text style={styles.actionText}>Messages</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.actionCard, { backgroundColor: '#AF52DE' }]}
-                  onPress={() => navigation.navigate('ManageSubscription')}
-                >
-                  <Text style={styles.actionIcon}>💎</Text>
-                  <Text style={styles.actionText}>Mon Abonnement</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('StartupPaymentSettings', { startupId })}>
+                  <LinearGradient
+                    colors={['#4facfe', '#00f2fe']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>💳</Text>
+                    <Text style={styles.actionText}>Paiements</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => navigation.navigate('ManageSubscription', { startupId })}>
+                  <LinearGradient
+                    colors={['#fa709a', '#fee140']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>💎</Text>
+                    <Text style={styles.actionText}>Mon Abonnement</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => navigation.navigate('StartupDeliverySettings', { startupId })}>
+                  <LinearGradient
+                    colors={['#4facfe', '#00f2fe']}
+                    style={styles.actionCard}
+                  >
+                    <Text style={styles.actionIcon}>🚚</Text>
+                    <Text style={styles.actionText}>Livraison</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
           </>
         )}
 
-        {/* ONGLET PRODUITS */}
         {activeTab === 'products' && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -637,8 +789,8 @@ export default function StartupDashboardScreen({ route, navigation }) {
               products.map(product => (
                 <View key={product.id} style={styles.productCard}>
                   <View style={styles.productImageContainer}>
-                    {product.image && typeof product.image === 'string' && 
-                     (product.image.startsWith('http') || product.image.startsWith('file')) ? (
+                    {product.image && typeof product.image === 'string' &&
+                      (product.image.startsWith('http') || product.image.startsWith('file')) ? (
                       <Image source={{ uri: product.image }} style={styles.productImage} />
                     ) : (
                       <Text style={styles.productEmoji}>{product.image || '📦'}</Text>
@@ -652,68 +804,271 @@ export default function StartupDashboardScreen({ route, navigation }) {
                     <Text style={styles.productStock}>
                       Stock: {product.stock} • {product.available ? '✅ Dispo' : '❌ Indispo'}
                     </Text>
+                    {product.boost?.active && (
+                      <Text style={styles.boostActiveBadge}>
+                        {product.boost.badge || '⭐ Boosté'}
+                      </Text>
+                    )}
                   </View>
-                  <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={() => navigation.navigate('EditProduct', { productId: product.id })}
-                  >
-                    <Text style={styles.editButtonText}>✏️</Text>
-                  </TouchableOpacity>
+                  <View style={styles.productActions}>
+                    <TouchableOpacity
+                      style={styles.boostButton}
+                      onPress={() => navigation.navigate('BoostProduct', { product })}
+                    >
+                      <Text style={styles.boostButtonText}>⭐ Booster</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() => navigation.navigate('EditProduct', { productId: product.id })}
+                    >
+                      <Text style={styles.editButtonText}>✏️</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             )}
           </View>
         )}
 
-        {/* ONGLET COMMANDES */}
         {activeTab === 'orders' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🛒 Commandes ({orders.length})</Text>
+            <Text style={styles.sectionTitle}>🛒 Gestion des Commandes</Text>
+
+            {orders.length > 0 && (
+              <View style={styles.orderStatsContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.orderStatCard,
+                    orderStatusFilter === 'all' && styles.orderStatCardActive
+                  ]}
+                  onPress={() => setOrderStatusFilter('all')}
+                >
+                  <LinearGradient
+                    colors={orderStatusFilter === 'all' ? ['#667eea', '#764ba2'] : ['#f5f5f5', '#e0e0e0']}
+                    style={styles.orderStatGradient}
+                  >
+                    <Text style={[styles.orderStatNumber, orderStatusFilter === 'all' && styles.orderStatTextActive]}>
+                      {getOrderStats().all}
+                    </Text>
+                    <Text style={[styles.orderStatLabel, orderStatusFilter === 'all' && styles.orderStatTextActive]}>
+                      Toutes
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.orderStatCard,
+                    orderStatusFilter === 'pending' && styles.orderStatCardActive
+                  ]}
+                  onPress={() => setOrderStatusFilter('pending')}
+                >
+                  <LinearGradient
+                    colors={orderStatusFilter === 'pending' ? ['#FFA500', '#FF8C00'] : ['#f5f5f5', '#e0e0e0']}
+                    style={styles.orderStatGradient}
+                  >
+                    <Text style={[styles.orderStatNumber, orderStatusFilter === 'pending' && styles.orderStatTextActive]}>
+                      {getOrderStats().pending}
+                    </Text>
+                    <Text style={[styles.orderStatLabel, orderStatusFilter === 'pending' && styles.orderStatTextActive]}>
+                      En attente
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.orderStatCard,
+                    orderStatusFilter === 'processing' && styles.orderStatCardActive
+                  ]}
+                  onPress={() => setOrderStatusFilter('processing')}
+                >
+                  <LinearGradient
+                    colors={orderStatusFilter === 'processing' ? ['#4facfe', '#00f2fe'] : ['#f5f5f5', '#e0e0e0']}
+                    style={styles.orderStatGradient}
+                  >
+                    <Text style={[styles.orderStatNumber, orderStatusFilter === 'processing' && styles.orderStatTextActive]}>
+                      {getOrderStats().processing}
+                    </Text>
+                    <Text style={[styles.orderStatLabel, orderStatusFilter === 'processing' && styles.orderStatTextActive]}>
+                      En préparation
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.orderStatCard,
+                    orderStatusFilter === 'shipped' && styles.orderStatCardActive
+                  ]}
+                  onPress={() => setOrderStatusFilter('shipped')}
+                >
+                  <LinearGradient
+                    colors={orderStatusFilter === 'shipped' ? ['#11998e', '#38ef7d'] : ['#f5f5f5', '#e0e0e0']}
+                    style={styles.orderStatGradient}
+                  >
+                    <Text style={[styles.orderStatNumber, orderStatusFilter === 'shipped' && styles.orderStatTextActive]}>
+                      {getOrderStats().shipped}
+                    </Text>
+                    <Text style={[styles.orderStatLabel, orderStatusFilter === 'shipped' && styles.orderStatTextActive]}>
+                      Expédiées
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.orderStatCard,
+                    orderStatusFilter === 'delivered' && styles.orderStatCardActive
+                  ]}
+                  onPress={() => setOrderStatusFilter('delivered')}
+                >
+                  <LinearGradient
+                    colors={orderStatusFilter === 'delivered' ? ['#38ef7d', '#11998e'] : ['#f5f5f5', '#e0e0e0']}
+                    style={styles.orderStatGradient}
+                  >
+                    <Text style={[styles.orderStatNumber, orderStatusFilter === 'delivered' && styles.orderStatTextActive]}>
+                      {getOrderStats().delivered}
+                    </Text>
+                    <Text style={[styles.orderStatLabel, orderStatusFilter === 'delivered' && styles.orderStatTextActive]}>
+                      Livrées
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {orders.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>🛒</Text>
                 <Text style={styles.emptyText}>Aucune commande</Text>
               </View>
+            ) : getFilteredOrders().length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>🔍</Text>
+                <Text style={styles.emptyText}>Aucune commande avec ce statut</Text>
+              </View>
             ) : (
-              orders.map(order => {
+              getFilteredOrders().map(order => {
                 const startupItems = order.items?.filter(item => item.startupId === startupId) || [];
-                const orderTotal = startupItems.reduce((sum, item) => 
+                const orderTotal = startupItems.reduce((sum, item) =>
                   sum + (item.price * item.quantity), 0
                 );
 
                 return (
-                  <View key={order.id} style={styles.orderCard}>
-                    <View style={styles.orderHeader}>
-                      <Text style={styles.orderId}>#{order.id.slice(0, 8)}</Text>
-                      <View style={styles.orderActions}>
-                        <TouchableOpacity
-                          onPress={() => {
-                            Alert.alert(
-                              'Mettre à jour le statut',
-                              'Choisir le nouveau statut',
-                              [
-                                { text: 'En préparation', onPress: () => updateOrderStatus(order.id, 'processing') },
-                                { text: 'Expédié', onPress: () => updateOrderStatus(order.id, 'shipped') },
-                                { text: 'Livré', onPress: () => updateOrderStatus(order.id, 'delivered') },
-                                { text: 'Annuler', style: 'cancel' }
-                              ]
-                            );
-                          }}
-                          style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}
-                        >
-                          <Text style={styles.statusText}>{getStatusLabel(order.status)}</Text>
-                        </TouchableOpacity>
+                  <View key={order.id} style={styles.orderCardEnhanced}>
+                    <View style={styles.orderHeaderEnhanced}>
+                      <View style={styles.orderHeaderLeft}>
+                        <Text style={styles.orderIdEnhanced}>#{order.id.slice(0, 8)}</Text>
+                        <Text style={styles.orderDateEnhanced}>
+                          {order.createdAt?.toDate?.()?.toLocaleDateString('fr-FR', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                          }) || 'Date inconnue'}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.statusBadgeEnhanced, { backgroundColor: getStatusColor(order.status) }]}
+                        onPress={() => {
+                          Alert.alert(
+                            'Mettre à jour le statut',
+                            'Choisir le nouveau statut',
+                            [
+                              { text: 'En préparation', onPress: () => updateOrderStatus(order.id, 'processing') },
+                              { text: 'Expédié', onPress: () => updateOrderStatus(order.id, 'shipped') },
+                              { text: 'Livré', onPress: () => updateOrderStatus(order.id, 'delivered') },
+                              { text: 'Annuler', style: 'cancel' }
+                            ]
+                          );
+                        }}
+                      >
+                        <Text style={styles.statusTextEnhanced}>{getStatusLabel(order.status)}</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.orderClientInfo}>
+                      <Text style={styles.orderClientIcon}>👤</Text>
+                      <View style={styles.orderClientDetails}>
+                        <Text style={styles.orderClientName}>
+                          {order.customerInfo?.name ||
+                            order.shippingAddress?.name ||
+                            order.deliveryAddress?.name ||
+                            'Client'}
+                        </Text>
+
+                        <Text style={styles.orderClientPhone}>
+                          📞 {order.customerInfo?.phone ||
+                            order.deliveryAddress?.phone ||
+                            order.shippingAddress?.phone ||
+                            'Téléphone non disponible'}
+                        </Text>
+
+                        {order.customerInfo?.email && (
+                          <Text style={styles.orderClientEmail}>
+                            ✉️ {order.customerInfo.email}
+                          </Text>
+                        )}
+
+                        <Text style={styles.orderClientAddress} numberOfLines={3}>
+                          📍 {order.deliveryAddress?.fullAddress ||
+                            (order.deliveryAddress?.street && order.deliveryAddress?.city
+                              ? `${order.deliveryAddress.street}, ${order.deliveryAddress.city}`
+                              : order.shippingAddress?.address && order.shippingAddress?.city
+                                ? `${order.shippingAddress.address}, ${order.shippingAddress.city}`
+                                : 'Adresse non disponible')}
+                        </Text>
                       </View>
                     </View>
-                    <Text style={styles.orderItems}>
-                      {startupItems.length} article{startupItems.length > 1 ? 's' : ''}
-                    </Text>
-                    <Text style={styles.orderTotal}>
-                      {orderTotal.toLocaleString('fr-FR')} FCFA
-                    </Text>
-                    <Text style={styles.orderDate}>
-                      {order.createdAt?.toDate?.()?.toLocaleDateString('fr-FR') || 'Date inconnue'}
-                    </Text>
+
+                    <View style={styles.orderItemsSection}>
+                      <Text style={styles.orderItemsTitle}>📦 Articles ({startupItems.length})</Text>
+                      {startupItems.map((item, idx) => (
+                        <View key={idx} style={styles.orderItemRow}>
+                          <Text style={styles.orderItemName} numberOfLines={1}>
+                            {item.name}
+                          </Text>
+                          <Text style={styles.orderItemQuantity}>x{item.quantity}</Text>
+                          <Text style={styles.orderItemPrice}>
+                            {(item.price * item.quantity).toLocaleString('fr-FR')} FCFA
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    <View style={styles.orderTotalSection}>
+                      <Text style={styles.orderTotalLabel}>Total</Text>
+                      <Text style={styles.orderTotalValue}>
+                        {orderTotal.toLocaleString('fr-FR')} FCFA
+                      </Text>
+                    </View>
+
+                    <View style={styles.orderQuickActions}>
+                      {order.status === 'pending' && (
+                        <TouchableOpacity
+                          style={[styles.quickActionBtn, styles.quickActionProcessing]}
+                          onPress={() => updateOrderStatus(order.id, 'processing')}
+                        >
+                          <Text style={styles.quickActionText}>🔧 Préparer</Text>
+                        </TouchableOpacity>
+                      )}
+                      {order.status === 'processing' && (
+                        <TouchableOpacity
+                          style={[styles.quickActionBtn, styles.quickActionShip]}
+                          onPress={() => updateOrderStatus(order.id, 'shipped')}
+                        >
+                          <Text style={styles.quickActionText}>🚚 Expédier</Text>
+                        </TouchableOpacity>
+                      )}
+                      {order.status === 'shipped' && (
+                        <TouchableOpacity
+                          style={[styles.quickActionBtn, styles.quickActionDeliver]}
+                          onPress={() => updateOrderStatus(order.id, 'delivered')}
+                        >
+                          <Text style={styles.quickActionText}>✅ Livrer</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                 );
               })
@@ -721,7 +1076,6 @@ export default function StartupDashboardScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* ONGLET PROMOS */}
         {activeTab === 'promo' && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -764,70 +1118,68 @@ export default function StartupDashboardScreen({ route, navigation }) {
                   <Text style={styles.promoUsage}>
                     {promo.currentUses || 0} / {promo.maxUses || '∞'} utilisations
                   </Text>
-                  {/* ✅ BOUTONS ACTIONS */}
-<View style={styles.promoActions}>
-  <TouchableOpacity
-    style={styles.promoActionButton}
-    onPress={async () => {
-      try {
-        await updateDoc(doc(db, 'promoCodes', promo.id), {
-          active: !promo.active
-        });
-        Alert.alert('Succès', `Code ${!promo.active ? 'activé' : 'désactivé'}`);
-        loadDashboard();
-      } catch (error) {
-        Alert.alert('Erreur', 'Impossible de modifier le code');
-      }
-    }}
-  >
-    <Text style={styles.promoActionText}>
-      {promo.active ? '⏸️ Désactiver' : '▶️ Activer'}
-    </Text>
-  </TouchableOpacity>
-  
-  <TouchableOpacity
-    style={[styles.promoActionButton, styles.promoActionButtonDanger]}
-    onPress={() => {
-      Alert.alert(
-        'Supprimer le code',
-        `Voulez-vous supprimer le code "${promo.code}" ?`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          {
-            text: 'Supprimer',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await deleteDoc(doc(db, 'promoCodes', promo.id));
-                Alert.alert('Succès', 'Code supprimé');
-                loadDashboard();
-              } catch (error) {
-                Alert.alert('Erreur', 'Impossible de supprimer le code');
-              }
-            }
-          }
-        ]
-      );
-    }}
-  >
-    <Text style={[styles.promoActionText, styles.promoActionTextDanger]}>
-      🗑️ Supprimer
-    </Text>
-  </TouchableOpacity>
-</View>
+                  <View style={styles.promoActions}>
+                    <TouchableOpacity
+                      style={styles.promoActionButton}
+                      onPress={async () => {
+                        try {
+                          await updateDoc(doc(db, 'promoCodes', promo.id), {
+                            active: !promo.active
+                          });
+                          Alert.alert('Succès', `Code ${!promo.active ? 'activé' : 'désactivé'}`);
+                          loadDashboard();
+                        } catch (error) {
+                          Alert.alert('Erreur', 'Impossible de modifier le code');
+                        }
+                      }}
+                    >
+                      <Text style={styles.promoActionText}>
+                        {promo.active ? '⏸️ Désactiver' : '▶️ Activer'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.promoActionButton, styles.promoActionButtonDanger]}
+                      onPress={() => {
+                        Alert.alert(
+                          'Supprimer le code',
+                          `Voulez-vous supprimer le code "${promo.code}" ?`,
+                          [
+                            { text: 'Annuler', style: 'cancel' },
+                            {
+                              text: 'Supprimer',
+                              style: 'destructive',
+                              onPress: async () => {
+                                try {
+                                  await deleteDoc(doc(db, 'promoCodes', promo.id));
+                                  Alert.alert('Succès', 'Code supprimé');
+                                  loadDashboard();
+                                } catch (error) {
+                                  Alert.alert('Erreur', 'Impossible de supprimer le code');
+                                }
+                              }
+                            }
+                          ]
+                        );
+                      }}
+                    >
+                      <Text style={[styles.promoActionText, styles.promoActionTextDanger]}>
+                        🗑️ Supprimer
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             )}
           </View>
         )}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// HELPERS
 const getStatusColor = (status) => {
   const colors = {
     pending: '#FF9500',
@@ -838,7 +1190,6 @@ const getStatusColor = (status) => {
   };
   return colors[status] || '#8E8E93';
 };
-
 const getStatusLabel = (status) => {
   const labels = {
     pending: 'En attente',
@@ -852,12 +1203,31 @@ const getStatusLabel = (status) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F2F2F7' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#E5E5EA' },
-  backBtn: { fontSize: 28, color: '#007AFF' },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#000' },
-  headerSubtitle: { fontSize: 12, color: '#8E8E93', marginTop: 2 },
-  refreshBtn: { fontSize: 24 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backBtn: { fontSize: 28, color: 'white' },
+  headerCenter: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: 'white', textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  headerSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 4 },
+  refreshBtn: { fontSize: 24, color: 'white' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 16, fontSize: 15, color: '#8E8E93' },
   errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
@@ -865,15 +1235,36 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 18, fontWeight: 'bold', color: '#000', marginBottom: 24 },
   button: { backgroundColor: '#007AFF', paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12 },
   buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
-  
+
   content: { flex: 1 },
-  tabsContainer: { backgroundColor: 'white', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#E5E5EA' },
-  tab: { paddingHorizontal: 16, paddingVertical: 8, marginRight: 8, borderRadius: 8 },
-  activeTab: { backgroundColor: '#007AFF' },
+  tabsContainer: {
+    backgroundColor: 'white',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tab: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginRight: 10,
+    borderRadius: 12,
+    backgroundColor: '#F2F2F7',
+  },
+  activeTab: {
+    backgroundColor: '#667eea',
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
   tabText: { fontSize: 14, fontWeight: '600', color: '#8E8E93' },
-  activeTabText: { color: 'white' },
-  
-  // ✅ PHASE 1: Styles utilisation abonnement
+  activeTabText: { color: 'white', fontWeight: 'bold' },
+
   usageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -893,14 +1284,16 @@ const styles = StyleSheet.create({
   },
   usageCard: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(102, 126, 234, 0.1)',
   },
   usageCardHeader: {
     flexDirection: 'row',
@@ -957,31 +1350,41 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
   },
-  
+
   kpisContainer: { flexDirection: 'row', flexWrap: 'wrap', padding: 12, gap: 12 },
-  kpiCard: { width: (width - 36) / 2, backgroundColor: 'white', borderRadius: 16, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  kpiIcon: { fontSize: 32, marginBottom: 8 },
-  kpiValue: { fontSize: 24, fontWeight: 'bold', color: '#007AFF', marginBottom: 4 },
-  kpiLabel: { fontSize: 12, color: '#8E8E93', textAlign: 'center' },
-  
+  kpiCard: {
+    width: (width - 36) / 2,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  kpiIcon: { fontSize: 40, marginBottom: 12 },
+  kpiValue: { fontSize: 28, fontWeight: 'bold', color: 'white', marginBottom: 6, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  kpiLabel: { fontSize: 12, color: 'rgba(255,255,255,0.95)', textAlign: 'center', fontWeight: '600' },
+
   section: { padding: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#000', marginBottom: 16 },
   addButton: { backgroundColor: '#007AFF', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   addButtonText: { color: 'white', fontSize: 14, fontWeight: '600' },
-  
+
   revenueCards: { flexDirection: 'row', gap: 12 },
   revenueCard: { flex: 1, backgroundColor: 'white', borderRadius: 12, padding: 16, borderLeftWidth: 4, borderLeftColor: '#34C759', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
   revenueLabel: { fontSize: 13, color: '#8E8E93', marginBottom: 8 },
   revenueValue: { fontSize: 20, fontWeight: 'bold', color: '#34C759' },
-  
+
   topProductCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', borderRadius: 12, padding: 16, marginBottom: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 3, elevation: 2 },
   topProductRank: { width: 32, height: 32, backgroundColor: '#007AFF', borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   topProductRankText: { color: 'white', fontSize: 14, fontWeight: 'bold' },
   topProductInfo: { flex: 1 },
   topProductName: { fontSize: 15, fontWeight: '600', color: '#000', marginBottom: 4 },
   topProductStats: { fontSize: 13, color: '#8E8E93' },
-  
+
   alertCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF3CD', borderRadius: 12, padding: 12, marginBottom: 8, borderLeftWidth: 4, borderLeftColor: '#FF9500' },
   alertIcon: { fontSize: 24, marginRight: 12 },
   alertInfo: { flex: 1 },
@@ -989,12 +1392,22 @@ const styles = StyleSheet.create({
   alertStock: { fontSize: 12, color: '#FF9500' },
   alertButton: { backgroundColor: '#FF9500', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
   alertButtonText: { color: 'white', fontSize: 12, fontWeight: '600' },
-  
+
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  actionCard: { width: (width - 44) / 2, borderRadius: 12, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
-  actionIcon: { fontSize: 32, color: 'white', marginBottom: 8 },
-  actionText: { fontSize: 14, fontWeight: '600', color: 'white', textAlign: 'center' },
-  
+  actionCard: {
+    width: (width - 44) / 2,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  actionIcon: { fontSize: 36, color: 'white', marginBottom: 10, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  actionText: { fontSize: 14, fontWeight: 'bold', color: 'white', textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+
   productCard: { flexDirection: 'row', backgroundColor: 'white', borderRadius: 12, padding: 12, marginBottom: 12, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
   productImageContainer: { width: 60, height: 60, backgroundColor: '#F2F2F7', borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginRight: 12, overflow: 'hidden' },
   productImage: { width: '100%', height: '100%' },
@@ -1003,90 +1416,232 @@ const styles = StyleSheet.create({
   productName: { fontSize: 15, fontWeight: '600', color: '#000', marginBottom: 4 },
   productPrice: { fontSize: 14, fontWeight: 'bold', color: '#007AFF', marginBottom: 2 },
   productStock: { fontSize: 12, color: '#8E8E93' },
+  boostActiveBadge: { fontSize: 11, color: '#FF9500', fontWeight: '600', marginTop: 4 },
+  productActions: { flexDirection: 'column', gap: 8, alignItems: 'center' },
+  boostButton: { backgroundColor: '#FF9500', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  boostButtonText: { color: 'white', fontSize: 12, fontWeight: 'bold' },
   editButton: { width: 36, height: 36, backgroundColor: '#007AFF', borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   editButtonText: { fontSize: 18 },
-  
-  orderCard: { 
-    backgroundColor: 'white', 
-    borderRadius: 12, 
-    padding: 16, 
-    marginBottom: 12, 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 2 }, 
-    shadowOpacity: 0.08, 
-    shadowRadius: 4, 
-    elevation: 2 
-  },
-  orderHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: 8 
-  },
-  orderId: { 
-    fontSize: 14, 
-    fontWeight: 'bold', 
-    color: '#000' 
-  },
-  orderActions: {
+
+  orderStatsContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+    paddingHorizontal: 4,
   },
-  statusBadge: {
+  orderStatCard: {
+    flex: 1,
+    minWidth: 100,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  orderStatGradient: {
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 70,
+  },
+  orderStatNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#666',
+    marginBottom: 4,
+  },
+  orderStatLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+    textAlign: 'center',
+  },
+  orderStatTextActive: {
+    color: 'white',
+  },
+  orderCardEnhanced: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  orderHeaderEnhanced: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  orderHeaderLeft: {
+    flex: 1,
+  },
+  orderIdEnhanced: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  orderDateEnhanced: {
+    fontSize: 13,
+    color: '#999',
+  },
+  statusBadgeEnhanced: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4
+    borderRadius: 8,
   },
-  statusText: {
+  statusTextEnhanced: {
     fontSize: 12,
     fontWeight: '600',
-    color: 'white'
+    color: 'white',
   },
-  orderItems: { 
-    fontSize: 13, 
-    color: '#8E8E93', 
-    marginBottom: 4 
+  orderClientInfo: {
+    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
   },
-  orderTotal: { 
-    fontSize: 16, 
-    fontWeight: 'bold', 
-    color: '#007AFF', 
-    marginBottom: 4 
+  orderClientIcon: {
+    fontSize: 24,
+    marginRight: 12,
   },
-  orderDate: { 
-    fontSize: 12, 
-    color: '#8E8E93' 
+  orderClientDetails: {
+    flex: 1,
+  },
+  orderClientName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  orderClientPhone: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
+  },
+  orderClientEmail: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
+  },
+  orderClientAddress: {
+    fontSize: 12,
+    color: '#999',
+  },
+  orderItemsSection: {
+    marginBottom: 12,
+  },
+  orderItemsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  orderItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f5',
+  },
+  orderItemName: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+  },
+  orderItemQuantity: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+    marginHorizontal: 12,
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  orderItemPrice: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  orderTotalSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderTopWidth: 2,
+    borderTopColor: '#e0e0e0',
+    marginBottom: 12,
+  },
+  orderTotalLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  orderTotalValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  orderQuickActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickActionBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionProcessing: {
+    backgroundColor: '#4facfe',
+  },
+  quickActionShip: {
+    backgroundColor: '#11998e',
+  },
+  quickActionDeliver: {
+    backgroundColor: '#38ef7d',
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
   },
 
   promoActions: {
-  flexDirection: 'row',
-  marginTop: 12,
-  gap: 8,
-},
-promoActionButton: {
-  flex: 1,
-  backgroundColor: '#F2F2F7',
-  paddingVertical: 10,
-  paddingHorizontal: 12,
-  borderRadius: 8,
-  alignItems: 'center',
-},
-promoActionButtonDanger: {
-  backgroundColor: '#FFEBEE',
-},
-promoActionText: {
-  fontSize: 13,
-  fontWeight: '600',
-  color: '#000',
-},
-promoActionTextDanger: {
-  color: '#FF3B30',
-},
-  
+    flexDirection: 'row',
+    marginTop: 12,
+    gap: 8,
+  },
+  promoActionButton: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  promoActionButtonDanger: {
+    backgroundColor: '#FFEBEE',
+  },
+  promoActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#000',
+  },
+  promoActionTextDanger: {
+    color: '#FF3B30',
+  },
+
   promoCard: { backgroundColor: 'white', borderRadius: 12, padding: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
   promoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   promoCode: { fontSize: 18, fontWeight: 'bold', color: '#007AFF' },
@@ -1094,7 +1649,7 @@ promoActionTextDanger: {
   promoBadgeText: { color: 'white', fontSize: 11, fontWeight: 'bold' },
   promoDescription: { fontSize: 14, color: '#000', marginBottom: 4 },
   promoUsage: { fontSize: 12, color: '#8E8E93' },
-  
+
   emptyState: { backgroundColor: 'white', borderRadius: 16, padding: 40, alignItems: 'center' },
   emptyIcon: { fontSize: 64, marginBottom: 16 },
   emptyText: { fontSize: 16, fontWeight: 'bold', color: '#8E8E93', marginBottom: 8 },

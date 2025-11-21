@@ -1,10 +1,10 @@
-// components/PaymentModal.js - VERSION AMÉLIORÉE AVEC TRACKING
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Clipboard,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -12,306 +12,371 @@ import {
 } from 'react-native';
 import paymentService from '../utils/paymentService';
 
-export default function PaymentModal({
+export default function OrderConfirmationModal({
   visible,
   onClose,
-  orderData,
-  onPaymentConfirmed
+  orderId,
+  total,
+  paymentMethod,
+  mobileMoneyProvider,
+  startupPayments, // Array: [{id, name, total, mtnPhone, orangePhone}]
+  onViewOrders,
+  userId,
 }) {
-  const [loading, setLoading] = useState(false);
-  const [payment, setPayment] = useState(null);
-  const [timeRemaining, setTimeRemaining] = useState(900); // 15 minutes
-  const [paymentConfirmed, setPaymentConfirmed] = useState(false); // ✅ NOUVEAU
+  const [copiedCode, setCopiedCode] = useState(null);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
 
-  const handleExpiration = useCallback(() => {
-    Alert.alert(
-      'Temps écoulé',
-      'Le temps de paiement est expiré. Veuillez recommencer.',
-      [{ text: 'OK', onPress: onClose }]
-    );
-  }, [onClose]);
-
-  const initializePayment = useCallback(async () => {
-    setLoading(true);
-    setPaymentConfirmed(false); // ✅ Reset
-    try {
-      const result = await paymentService.createPayment({
-        orderId: orderData.orderId,
-        startupId: orderData.startupId,
-        userId: orderData.userId,
-        total: orderData.total,
-        startupPhone: orderData.startupPhone,
-        startupName: orderData.startupName,
-        operator: orderData.operator || 'mtn',
-      });
-
-      if (result.success) {
-        setPayment(result);
-        setTimeRemaining(900);
-      } else {
-        Alert.alert('Erreur', 'Impossible de créer le paiement');
-        onClose();
-      }
-    } catch (error) {
-      console.error('Erreur initialisation paiement:', error);
-      Alert.alert('Erreur', 'Une erreur est survenue');
-      onClose();
-    } finally {
-      setLoading(false);
-    }
-  }, [orderData, onClose]);
-
-  useEffect(() => {
-    if (visible && orderData) {
-      initializePayment();
-    }
-  }, [visible, orderData, initializePayment]);
-
-  useEffect(() => {
-    if (!visible || paymentConfirmed) return; // ✅ Stop si déjà confirmé
-
-    const timer = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleExpiration();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [visible, paymentConfirmed, handleExpiration]);
-
-  const handleCopyCode = () => {
-    if (payment?.mobileMoneyCode) {
-      Clipboard.setString(payment.mobileMoneyCode);
-      Alert.alert('Copié !', 'Le code a été copié dans le presse-papier');
-    }
+  const handleCopyCode = (code, index) => {
+    Clipboard.setString(code);
+    setCopiedCode(index);
+    setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const handleConfirmPayment = async () => {
     Alert.alert(
-      'Confirmation',
-      'Avez-vous effectué le paiement ?',
+      'Confirmation de paiement',
+      'Avez-vous effectué le paiement Mobile Money ?',
       [
-        { text: 'Non', style: 'cancel' },
+        { text: 'Annuler', style: 'cancel' },
         {
           text: 'Oui, j\'ai payé',
           onPress: async () => {
-            setLoading(true);
+            setConfirmingPayment(true);
             try {
-              const result = await paymentService.clientConfirmPayment(
-                payment.paymentId,
-                orderData.orderId
+              // Créer les paiements pour chaque startup
+              const paymentPromises = startupPayments.map(async (startup) => {
+                const phoneNumber =
+                  mobileMoneyProvider === 'mtn'
+                    ? startup.mtnPhone
+                    : startup.orangePhone;
+
+                if (!phoneNumber) {
+                  console.warn(`Pas de numéro ${mobileMoneyProvider} pour ${startup.name}`);
+                  return null;
+                }
+
+                // Créer le paiement
+                const result = await paymentService.createPayment({
+                  orderId: orderId,
+                  startupId: startup.id,
+                  userId: userId,
+                  total: startup.total || 0,
+                  startupPhone: phoneNumber,
+                  startupName: startup.name,
+                  operator: mobileMoneyProvider,
+                });
+
+                if (result.success) {
+                  // Confirmer que le client a payé
+                  await paymentService.clientConfirmPayment(
+                    result.paymentId,
+                    orderId
+                  );
+                }
+
+                return result;
+              });
+
+              await Promise.all(paymentPromises);
+
+              setPaymentConfirmed(true);
+              Alert.alert(
+                'Paiement enregistré',
+                'Votre paiement a été enregistré. La startup va vérifier et confirmer la réception.',
+                [{ text: 'OK' }]
               );
-
-              if (result.success) {
-                setPaymentConfirmed(true); // ✅ Marquer comme confirmé
-                setLoading(false);
-                // ✅ NE PAS FERMER LE MODAL, juste changer l'état
-              } else {
-                Alert.alert('Erreur', 'Impossible de confirmer le paiement');
-                setLoading(false);
-              }
             } catch (error) {
-              console.error('Erreur confirmation:', error);
-              Alert.alert('Erreur', 'Une erreur est survenue');
-              setLoading(false);
+              console.error('Erreur confirmation paiement:', error);
+              Alert.alert(
+                'Erreur',
+                'Impossible d\'enregistrer le paiement. Veuillez réessayer.'
+              );
+            } finally {
+              setConfirmingPayment(false);
             }
-          }
-        }
+          },
+        },
       ]
     );
   };
 
-  const handleCancel = () => {
-    Alert.alert(
-      'Annuler le paiement ?',
-      'Êtes-vous sûr de vouloir annuler ?',
-      [
-        { text: 'Non', style: 'cancel' },
-        {
-          text: 'Oui, annuler',
-          style: 'destructive',
-          onPress: async () => {
-            if (payment) {
-              await paymentService.cancelPayment(payment.paymentId, orderData.orderId);
-            }
-            onClose();
-          }
-        }
-      ]
-    );
-  };
-
-  // ✅ NOUVEAU : Fermer après confirmation
-  const handleCloseAfterConfirmation = () => {
-    onPaymentConfirmed?.();
+  const handleClose = () => {
     onClose();
   };
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  if (loading && !payment) {
-    return (
-      <Modal visible={visible} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>Préparation du paiement...</Text>
-          </View>
-        </View>
-      </Modal>
-    );
-  }
-
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={handleClose}
+    >
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
           {/* HEADER */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>
-              {paymentConfirmed ? '✅ Paiement enregistré' : '💰 Finaliser la Commande'}
+            <View style={styles.successIcon}>
+              <Text style={styles.successIconText}>✅</Text>
+            </View>
+            <Text style={styles.headerTitle}>Commande confirmée !</Text>
+            <Text style={styles.headerSubtitle}>
+              Votre commande a été enregistrée avec succès
             </Text>
-            <TouchableOpacity 
-              onPress={paymentConfirmed ? handleCloseAfterConfirmation : handleCancel} 
-              style={styles.closeButton}
-            >
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
           </View>
 
-          {/* ✅ SI PAIEMENT CONFIRMÉ */}
-          {paymentConfirmed ? (
-            <View style={styles.confirmedContainer}>
-              <View style={styles.confirmedIcon}>
-                <Text style={styles.confirmedIconText}>✅</Text>
-              </View>
-              
-              <Text style={styles.confirmedTitle}>Paiement enregistré !</Text>
-              
-              <Text style={styles.confirmedText}>
-                Votre paiement de <Text style={styles.confirmedAmount}>{orderData?.total?.toLocaleString('fr-FR')} FCFA</Text> a été enregistré avec succès.
-              </Text>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {/* NUMÉRO DE COMMANDE */}
+            <View style={styles.orderIdCard}>
+              <Text style={styles.orderIdLabel}>Numéro de commande</Text>
+              <Text style={styles.orderIdValue}>#{orderId}</Text>
+            </View>
 
-              <View style={styles.confirmedInfoCard}>
-                <Text style={styles.confirmedInfoIcon}>⏳</Text>
-                <View style={styles.confirmedInfoText}>
-                  <Text style={styles.confirmedInfoTitle}>En attente de confirmation</Text>
-                  <Text style={styles.confirmedInfoSubtitle}>
-                    La startup <Text style={styles.confirmedStartupName}>{orderData?.startupName}</Text> va vérifier et confirmer la réception du paiement.
+            {/* TOTAL */}
+            <View style={styles.totalCard}>
+              <Text style={styles.totalLabel}>Montant total</Text>
+              <Text style={styles.totalValue}>
+                {(total || 0).toLocaleString('fr-FR')} FCFA
+              </Text>
+            </View>
+
+            {/* INSTRUCTIONS PAIEMENT */}
+            {paymentMethod === 'cash_on_delivery' && (
+              <View style={styles.paymentCard}>
+                <View style={styles.paymentHeader}>
+                  <Text style={styles.paymentIcon}>💵</Text>
+                  <Text style={styles.paymentTitle}>
+                    Paiement à la livraison
+                  </Text>
+                </View>
+                <Text style={styles.paymentDescription}>
+                  Vous paierez en espèces lors de la réception de votre commande.
+                </Text>
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoBoxIcon}>💡</Text>
+                  <Text style={styles.infoBoxText}>
+                    Préparez le montant exact pour faciliter la transaction
                   </Text>
                 </View>
               </View>
+            )}
 
-              <View style={styles.confirmedSteps}>
-                <Text style={styles.confirmedStepsTitle}>Prochaines étapes :</Text>
-                <Text style={styles.confirmedStep}>✅ 1. Votre paiement est enregistré</Text>
-                <Text style={styles.confirmedStep}>⏳ 2. La startup va confirmer la réception</Text>
-                <Text style={styles.confirmedStep}>📦 3. Votre commande sera traitée</Text>
-                <Text style={styles.confirmedStep}>🚀 4. Vous serez notifié de l&apos;expédition</Text>
+            {paymentMethod === 'mobile_money' && mobileMoneyProvider && (
+              <View style={styles.paymentCard}>
+                <View style={styles.paymentHeader}>
+                  <Text style={styles.paymentIcon}>
+                    {mobileMoneyProvider === 'mtn' ? '💛' : '🧡'}
+                  </Text>
+                  <Text style={styles.paymentTitle}>
+                    {mobileMoneyProvider === 'mtn'
+                      ? 'MTN Mobile Money'
+                      : 'Orange Money'}
+                  </Text>
+                </View>
+
+                <Text style={styles.instructionsTitle}>
+                  📝 Instructions de paiement
+                </Text>
+
+                {startupPayments && startupPayments.length > 0 ? (
+                  <>
+                    <Text style={styles.instructionsText}>
+                      Composez les codes USSD suivants pour effectuer vos paiements:
+                    </Text>
+
+                    {startupPayments.map((sp, index) => {
+                      const phoneNumber =
+                        mobileMoneyProvider === 'mtn'
+                          ? sp.mtnPhone
+                          : sp.orangePhone;
+                      const startupTotal = sp.total || 0;
+                      const ussdCode =
+                        mobileMoneyProvider === 'mtn'
+                          ? `*126*1*1*${phoneNumber || '[NON_CONFIGURÉ]'}*${startupTotal}#`
+                          : `#150*1*1*${phoneNumber || '[NON_CONFIGURÉ]'}*${startupTotal}#`;
+
+                      return (
+                        <View key={index} style={styles.startupCodeCard}>
+                          <View style={styles.startupCodeHeader}>
+                            <Text style={styles.startupCodeIcon}>🏢</Text>
+                            <View style={styles.startupCodeInfo}>
+                              <Text style={styles.startupCodeName}>
+                                {sp.name}
+                              </Text>
+                              <Text style={styles.startupCodeAmount}>
+                                {startupTotal.toLocaleString('fr-FR')} FCFA
+                              </Text>
+                            </View>
+                          </View>
+
+                          {phoneNumber ? (
+                            <>
+                              <View style={styles.codeContainer}>
+                                <Text style={styles.codeText} selectable>
+                                  {ussdCode}
+                                </Text>
+                              </View>
+
+                              <TouchableOpacity
+                                style={[
+                                  styles.copyButton,
+                                  copiedCode === index && styles.copyButtonCopied,
+                                ]}
+                                onPress={() => handleCopyCode(ussdCode, index)}
+                              >
+                                <Text style={styles.copyButtonText}>
+                                  {copiedCode === index
+                                    ? '✓ Copié !'
+                                    : '📋 Copier le code'}
+                                </Text>
+                              </TouchableOpacity>
+                            </>
+                          ) : (
+                            <View style={styles.warningBox}>
+                              <Text style={styles.warningIcon}>⚠️</Text>
+                              <Text style={styles.warningText}>
+                                Numéro{' '}
+                                {mobileMoneyProvider === 'mtn' ? 'MTN' : 'Orange'}{' '}
+                                non configuré. Contactez la startup.
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
+
+                    <View style={styles.stepsCard}>
+                      <Text style={styles.stepsTitle}>
+                        Comment payer par Mobile Money:
+                      </Text>
+                      <Text style={styles.stepText}>1. Copiez le code USSD</Text>
+                      <Text style={styles.stepText}>
+                        2. Composez-le sur votre téléphone
+                      </Text>
+                      <Text style={styles.stepText}>
+                        3. Suivez les instructions à l'écran
+                      </Text>
+                      <Text style={styles.stepText}>
+                        4. Confirmez le paiement avec votre code PIN
+                      </Text>
+                      <Text style={styles.stepText}>
+                        5. Revenez ici et cliquez "J'ai payé"
+                      </Text>
+                    </View>
+
+                    {/* BOUTON J'AI PAYÉ */}
+                    {!paymentConfirmed && (
+                      <TouchableOpacity
+                        style={[
+                          styles.confirmPaymentButton,
+                          confirmingPayment && styles.confirmPaymentButtonDisabled,
+                        ]}
+                        onPress={handleConfirmPayment}
+                        disabled={confirmingPayment}
+                      >
+                        {confirmingPayment ? (
+                          <ActivityIndicator color="white" />
+                        ) : (
+                          <>
+                            <Text style={styles.confirmPaymentButtonIcon}>✓</Text>
+                            <Text style={styles.confirmPaymentButtonText}>
+                              J'ai payé
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+
+                    {paymentConfirmed && (
+                      <View style={styles.paymentConfirmedBanner}>
+                        <Text style={styles.paymentConfirmedIcon}>✅</Text>
+                        <View style={styles.paymentConfirmedContent}>
+                          <Text style={styles.paymentConfirmedTitle}>
+                            Paiement enregistré
+                          </Text>
+                          <Text style={styles.paymentConfirmedText}>
+                            La startup va vérifier et confirmer la réception
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <Text style={styles.noStartupsText}>
+                    Aucune information de paiement disponible
+                  </Text>
+                )}
               </View>
+            )}
 
-              <TouchableOpacity
-                style={styles.confirmedButton}
-                onPress={handleCloseAfterConfirmation}
-              >
-                <Text style={styles.confirmedButtonText}>Fermer</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.confirmedSecondaryButton}
-                onPress={() => {
-                  handleCloseAfterConfirmation();
-                  // Navigation vers commandes (à adapter selon tes routes)
-                }}
-              >
-                <Text style={styles.confirmedSecondaryButtonText}>Voir mes commandes</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            /* ❌ FORMULAIRE PAIEMENT NORMAL */
-            <>
-              {/* INFO STARTUP */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>🏢 Informations de la startup</Text>
-                <Text style={styles.startupName}>{orderData?.startupName}</Text>
-                <Text style={styles.startupPhone}>☎️  {orderData?.startupPhone}</Text>
-              </View>
-
-              {/* MONTANT */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>💵 Montant à payer</Text>
-                <Text style={styles.amount}>{orderData?.total?.toLocaleString('fr-FR')} FCFA</Text>
-              </View>
-
-              {/* COMPTE À REBOURS */}
-              <View style={styles.timerSection}>
-                <Text style={styles.timerLabel}>⏱️  Temps restant</Text>
-                <Text style={[
-                  styles.timerValue,
-                  timeRemaining < 60 && styles.timerUrgent
-                ]}>
-                  {formatTime(timeRemaining)}
+            {/* PROCHAINES ÉTAPES */}
+            <View style={styles.nextStepsCard}>
+              <Text style={styles.nextStepsTitle}>📦 Prochaines étapes</Text>
+              <View style={styles.nextStepItem}>
+                <Text style={styles.nextStepIcon}>✅</Text>
+                <Text style={styles.nextStepText}>
+                  Commande enregistrée avec succès
                 </Text>
               </View>
-
-              {/* CODE MOBILE MONEY */}
-              <View style={styles.codeSection}>
-                <Text style={styles.sectionTitle}>📱 Code Mobile Money</Text>
-                <View style={styles.codeContainer}>
-                  <Text style={styles.codeText} selectable>
-                    {payment?.mobileMoneyCode}
-                  </Text>
-                  <TouchableOpacity onPress={handleCopyCode} style={styles.copyIcon}>
-                    <Text style={styles.copyIconText}>📋</Text>
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity style={styles.copyButton} onPress={handleCopyCode}>
-                  <Text style={styles.copyButtonText}>📋 Copier le code</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* INSTRUCTIONS */}
-              <View style={styles.instructionsSection}>
-                <Text style={styles.sectionTitle}>📝 Instructions</Text>
-                <Text style={styles.instruction}>1. Copier le code ci-dessus</Text>
-                <Text style={styles.instruction}>2. Composer le code sur votre téléphone</Text>
-                <Text style={styles.instruction}>3. Valider le paiement</Text>
-                <Text style={styles.instruction}>4. Revenir et cliquer &quot;J&apos;ai payé&quot;</Text>
-              </View>
-
-              {/* BOUTONS */}
-              <View style={styles.buttons}>
-                <TouchableOpacity 
-                  style={[styles.button, styles.cancelButton]} 
-                  onPress={handleCancel}
-                  disabled={loading}
-                >
-                  <Text style={styles.cancelButtonText}>❌ Annuler</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.button, styles.confirmButton]} 
-                  onPress={handleConfirmPayment}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text style={styles.confirmButtonText}>✅ J&apos;ai payé</Text>
+              {paymentMethod === 'mobile_money' && (
+                <>
+                  <View style={styles.nextStepItem}>
+                    <Text style={styles.nextStepIcon}>
+                      {paymentConfirmed ? '✅' : '💳'}
+                    </Text>
+                    <Text style={styles.nextStepText}>
+                      {paymentConfirmed
+                        ? 'Paiement Mobile Money effectué'
+                        : 'Effectuez le paiement Mobile Money'}
+                    </Text>
+                  </View>
+                  {paymentConfirmed && (
+                    <View style={styles.nextStepItem}>
+                      <Text style={styles.nextStepIcon}>⏳</Text>
+                      <Text style={styles.nextStepText}>
+                        En attente de confirmation par la startup
+                      </Text>
+                    </View>
                   )}
-                </TouchableOpacity>
+                </>
+              )}
+              <View style={styles.nextStepItem}>
+                <Text style={styles.nextStepIcon}>📦</Text>
+                <Text style={styles.nextStepText}>
+                  La startup prépare votre commande
+                </Text>
               </View>
-            </>
-          )}
+              <View style={styles.nextStepItem}>
+                <Text style={styles.nextStepIcon}>🚚</Text>
+                <Text style={styles.nextStepText}>
+                  Livraison à l'adresse indiquée
+                </Text>
+              </View>
+              <View style={styles.nextStepItem}>
+                <Text style={styles.nextStepIcon}>⭐</Text>
+                <Text style={styles.nextStepText}>
+                  N'oubliez pas de laisser un avis !
+                </Text>
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* BOUTONS */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={styles.ordersButton}
+              onPress={() => {
+                handleClose();
+                onViewOrders?.();
+              }}
+            >
+              <Text style={styles.ordersButtonText}>Voir mes commandes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+              <Text style={styles.closeButtonText}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -319,68 +384,387 @@ export default function PaymentModal({
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContainer: { width: '100%', maxWidth: 500, backgroundColor: 'white', borderRadius: 20, overflow: 'hidden', maxHeight: '90%' },
-  loadingContainer: { backgroundColor: 'white', borderRadius: 20, padding: 40, alignItems: 'center' },
-  loadingText: { marginTop: 16, fontSize: 15, color: '#8E8E93' },
-  
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#007AFF', padding: 20 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: 'white', flex: 1 },
-  closeButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
-  closeButtonText: { fontSize: 20, color: 'white', fontWeight: 'bold' },
-  
-  section: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' },
-  sectionTitle: { fontSize: 13, fontWeight: '600', color: '#8E8E93', marginBottom: 8 },
-  
-  startupName: { fontSize: 18, fontWeight: 'bold', color: '#000', marginBottom: 4 },
-  startupPhone: { fontSize: 15, color: '#007AFF' },
-  
-  amount: { fontSize: 32, fontWeight: 'bold', color: '#34C759' },
-  
-  timerSection: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#F2F2F7' },
-  timerLabel: { fontSize: 15, fontWeight: '600', color: '#000' },
-  timerValue: { fontSize: 24, fontWeight: 'bold', color: '#007AFF' },
-  timerUrgent: { color: '#FF3B30' },
-  
-  codeSection: { padding: 20, backgroundColor: '#FFF9E6', borderLeftWidth: 4, borderLeftColor: '#FFB900' },
-  codeContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 2, borderColor: '#FFB900' },
-  codeText: { flex: 1, fontSize: 18, fontWeight: 'bold', color: '#000', fontFamily: 'monospace' },
-  copyIcon: { marginLeft: 8 },
-  copyIconText: { fontSize: 24 },
-  copyButton: { backgroundColor: '#FFB900', borderRadius: 12, padding: 14, alignItems: 'center' },
-  copyButtonText: { fontSize: 15, fontWeight: 'bold', color: 'white' },
-  
-  instructionsSection: { padding: 20 },
-  instruction: { fontSize: 14, color: '#000', marginBottom: 6, lineHeight: 20 },
-  
-  buttons: { flexDirection: 'row', padding: 20, gap: 12 },
-  button: { flex: 1, borderRadius: 12, padding: 16, alignItems: 'center' },
-  cancelButton: { backgroundColor: '#F2F2F7' },
-  cancelButtonText: { fontSize: 15, fontWeight: 'bold', color: '#FF3B30' },
-  confirmButton: { backgroundColor: '#34C759' },
-  confirmButtonText: { fontSize: 15, fontWeight: 'bold', color: 'white' },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '90%',
+    maxHeight: '90%',
+    backgroundColor: 'white',
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
 
-  // ✅ STYLES CONFIRMATION
-  confirmedContainer: { padding: 24, alignItems: 'center' },
-  confirmedIcon: { width: 80, height: 80, backgroundColor: '#E8F5E9', borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  confirmedIconText: { fontSize: 48 },
-  confirmedTitle: { fontSize: 24, fontWeight: 'bold', color: '#000', marginBottom: 12, textAlign: 'center' },
-  confirmedText: { fontSize: 15, color: '#8E8E93', textAlign: 'center', marginBottom: 20, lineHeight: 22 },
-  confirmedAmount: { fontWeight: 'bold', color: '#34C759' },
-  
-  confirmedInfoCard: { flexDirection: 'row', backgroundColor: '#FFF3CD', borderRadius: 12, padding: 16, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#FF9500', width: '100%' },
-  confirmedInfoIcon: { fontSize: 32, marginRight: 12 },
-  confirmedInfoText: { flex: 1 },
-  confirmedInfoTitle: { fontSize: 15, fontWeight: 'bold', color: '#000', marginBottom: 4 },
-  confirmedInfoSubtitle: { fontSize: 13, color: '#8E8E93', lineHeight: 18 },
-  confirmedStartupName: { fontWeight: 'bold', color: '#007AFF' },
-  
-  confirmedSteps: { backgroundColor: '#F2F2F7', borderRadius: 12, padding: 16, marginBottom: 20, width: '100%' },
-  confirmedStepsTitle: { fontSize: 15, fontWeight: 'bold', color: '#000', marginBottom: 12 },
-  confirmedStep: { fontSize: 14, color: '#000', marginBottom: 8, lineHeight: 20 },
-  
-  confirmedButton: { backgroundColor: '#007AFF', borderRadius: 12, padding: 16, width: '100%', alignItems: 'center', marginBottom: 12 },
-  confirmedButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
-  confirmedSecondaryButton: { backgroundColor: '#F2F2F7', borderRadius: 12, padding: 16, width: '100%', alignItems: 'center' },
-  confirmedSecondaryButtonText: { color: '#007AFF', fontSize: 16, fontWeight: '600' },
+  // Header
+  header: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#F0F8FF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  successIconText: {
+    fontSize: 48,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+
+  // Content
+  content: {
+    maxHeight: 450,
+    padding: 20,
+  },
+
+  // Order ID Card
+  orderIdCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    borderStyle: 'dashed',
+  },
+  orderIdLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
+  },
+  orderIdValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    fontFamily: 'monospace',
+  },
+
+  // Total Card
+  totalCard: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  totalLabel: {
+    fontSize: 14,
+    color: '#2E7D32',
+    marginBottom: 8,
+  },
+  totalValue: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1B5E20',
+  },
+
+  // Payment Card
+  paymentCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  paymentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  paymentIcon: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  paymentTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    flex: 1,
+  },
+  paymentDescription: {
+    fontSize: 15,
+    color: '#666',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+
+  // Info Box
+  infoBox: {
+    flexDirection: 'row',
+    backgroundColor: '#E3F2FD',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+  },
+  infoBoxIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  infoBoxText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1976D2',
+    lineHeight: 18,
+  },
+
+  // Instructions
+  instructionsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 12,
+  },
+  instructionsText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+
+  // Startup Code Card
+  startupCodeCard: {
+    backgroundColor: '#FFF9E6',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFB900',
+  },
+  startupCodeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  startupCodeIcon: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  startupCodeInfo: {
+    flex: 1,
+  },
+  startupCodeName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 2,
+  },
+  startupCodeAmount: {
+    fontSize: 14,
+    color: '#34C759',
+    fontWeight: '600',
+  },
+
+  // Code Container
+  codeContainer: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#FFB900',
+  },
+  codeText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+    fontFamily: 'monospace',
+    textAlign: 'center',
+  },
+
+  // Copy Button
+  copyButton: {
+    backgroundColor: '#FFB900',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  copyButtonCopied: {
+    backgroundColor: '#34C759',
+  },
+  copyButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+
+  // Warning Box
+  warningBox: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF3CD',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  warningIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#856404',
+    lineHeight: 18,
+  },
+
+  // Steps Card
+  stepsCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  stepsTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 12,
+  },
+  stepText: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 6,
+    lineHeight: 18,
+  },
+
+  noStartupsText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    padding: 20,
+  },
+
+  // Next Steps Card
+  nextStepsCard: {
+    backgroundColor: '#F0F8FF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  nextStepsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 12,
+  },
+  nextStepItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  nextStepIcon: {
+    fontSize: 20,
+    marginRight: 12,
+    width: 24,
+  },
+  nextStepText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+
+  // Footer
+  footer: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+  },
+  ordersButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  ordersButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: '#8E8E93',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Bouton J'ai payé
+  confirmPaymentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#34C759',
+    borderRadius: 12,
+    padding: 18,
+    marginTop: 16,
+    gap: 8,
+  },
+  confirmPaymentButtonDisabled: {
+    opacity: 0.6,
+  },
+  confirmPaymentButtonIcon: {
+    fontSize: 24,
+    color: 'white',
+  },
+  confirmPaymentButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+
+  // Banner confirmation paiement
+  paymentConfirmedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#34C759',
+    gap: 12,
+  },
+  paymentConfirmedIcon: {
+    fontSize: 32,
+  },
+  paymentConfirmedContent: {
+    flex: 1,
+  },
+  paymentConfirmedTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1B5E20',
+    marginBottom: 4,
+  },
+  paymentConfirmedText: {
+    fontSize: 13,
+    color: '#2E7D32',
+    lineHeight: 18,
+  },
 });

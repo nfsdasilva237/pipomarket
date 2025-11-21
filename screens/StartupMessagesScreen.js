@@ -1,63 +1,102 @@
-import React, { useState, useEffect } from 'react';
+import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
   ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { collection, query, where, onSnapshot, orderBy, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 
-export default function StartupMessagesScreen({ navigation }) {
+export default function StartupMessagesScreen({ route, navigation }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Récupérer startupId depuis les params (important pour login par code)
+  const { startupId: paramStartupId } = route.params || {};
   const currentUser = auth.currentUser;
+
+  // Utiliser startupId des params OU currentUser.uid en fallback
+  const effectiveStartupId = paramStartupId || currentUser?.uid;
 
   // Écouter les conversations en temps réel
   useEffect(() => {
-    if (!currentUser) return;
+    if (!effectiveStartupId) {
+      setLoading(false);
+      return;
+    }
+
+    console.log('📬 Chargement messages pour startup:', effectiveStartupId);
 
     const conversationsRef = collection(db, 'conversations');
+    
+    // ✅ Utiliser array-contains sur participants (pas besoin d'index composite)
     const q = query(
       conversationsRef,
-      where('startupId', '==', currentUser.uid),
-      orderBy('lastMessageTime', 'desc')
+      where('participants', 'array-contains', effectiveStartupId)
     );
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
+      console.log('📨 Conversations trouvées:', snapshot.docs.length);
+      
       const conversationsData = [];
       
       for (const docSnapshot of snapshot.docs) {
         const data = docSnapshot.data();
         
+        // Trouver l'ID du client (l'autre participant)
+        const clientId = data.participants?.find(id => id !== effectiveStartupId) || data.userId;
+        
         // Récupérer le nom du client
         let clientName = 'Client';
         try {
-          const userDoc = await getDoc(doc(db, 'users', data.userId));
-          if (userDoc.exists()) {
-            clientName = userDoc.data().fullName || userDoc.data().email || 'Client';
+          if (clientId) {
+            const userDoc = await getDoc(doc(db, 'users', clientId));
+            if (userDoc.exists()) {
+              clientName = userDoc.data().fullName || userDoc.data().email || 'Client';
+            }
           }
         } catch (error) {
           console.error('Erreur récupération nom client:', error);
+        }
+
+        // Récupérer le nom de la startup
+        let startupName = data.startupName || 'Ma Startup';
+        if (!startupName && data.participantsInfo?.[effectiveStartupId]) {
+          startupName = data.participantsInfo[effectiveStartupId].name;
         }
 
         conversationsData.push({
           id: docSnapshot.id,
           ...data,
           clientName,
+          startupName,
+          userId: clientId,
+          // Assurer la compatibilité avec les deux formats
+          lastMessageTime: data.lastMessageTime || data.updatedAt,
+          unreadStartup: data.unreadStartup || data.unreadCount?.[effectiveStartupId] || 0,
         });
       }
       
+      // Trier par date (plus récent en premier)
+      conversationsData.sort((a, b) => {
+        const dateA = a.lastMessageTime?.toDate?.() || a.lastMessageTime || new Date(0);
+        const dateB = b.lastMessageTime?.toDate?.() || b.lastMessageTime || new Date(0);
+        return dateB - dateA;
+      });
+      
       setConversations(conversationsData);
+      setLoading(false);
+    }, (error) => {
+      console.error('❌ Erreur écoute conversations:', error);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [currentUser]);
+  }, [effectiveStartupId]);
 
   const renderConversation = ({ item }) => {
     const hasUnread = item.unreadStartup > 0;
@@ -68,6 +107,7 @@ export default function StartupMessagesScreen({ navigation }) {
         onPress={() =>
           navigation.navigate('Chat', {
             clientId: item.userId,
+            startupId: effectiveStartupId, 
             startupName: item.startupName,
             clientName: item.clientName,
           })
@@ -84,7 +124,7 @@ export default function StartupMessagesScreen({ navigation }) {
             <Text style={styles.conversationName}>{item.clientName}</Text>
             {item.lastMessageTime && (
               <Text style={styles.conversationTime}>
-                {formatTime(item.lastMessageTime.toDate())}
+                {formatTime(item.lastMessageTime?.toDate?.() || item.lastMessageTime)}
               </Text>
             )}
           </View>
@@ -110,8 +150,13 @@ export default function StartupMessagesScreen({ navigation }) {
   };
 
   const formatTime = (date) => {
+    if (!date) return '';
+    
+    const dateObj = date instanceof Date ? date : new Date(date);
+    if (isNaN(dateObj.getTime())) return '';
+    
     const now = new Date();
-    const diffMs = now - date;
+    const diffMs = now - dateObj;
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
@@ -121,7 +166,7 @@ export default function StartupMessagesScreen({ navigation }) {
     if (diffHours < 24) return `${diffHours}h`;
     if (diffDays === 1) return 'Hier';
     if (diffDays < 7) return `${diffDays}j`;
-    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    return dateObj.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
 
   if (loading) {

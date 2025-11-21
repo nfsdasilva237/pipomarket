@@ -13,11 +13,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { db } from '../config/firebase';
 import categoryService from '../utils/categoryService';
 
 export default function AdminAddStartupScreen({ navigation }) {
+    const insets = useSafeAreaInsets(); // ← Ajouté pour SafeAreaInsets
   const [loading, setLoading] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
   
@@ -189,7 +190,7 @@ export default function AdminAddStartupScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -451,7 +452,7 @@ export default function AdminAddStartupScreen({ navigation }) {
           )}
         </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
       </ScrollView>
     </SafeAreaView>
   );

@@ -1,21 +1,22 @@
 // screens/AdminManageStartupScreen.js - GESTION DÉTAILLÉE STARTUP
-import React, { useState, useEffect } from 'react';
+import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { doc, getDoc, updateDoc, getDocs, collection, query, where } from 'firebase/firestore';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { db } from '../config/firebase';
 import adminService from '../utils/adminService';
 
 export default function AdminManageStartupScreen({ route, navigation }) {
+    const insets = useSafeAreaInsets(); // ← Ajouté pour SafeAreaInsets
   const { startupId } = route.params;
   
   const [loading, setLoading] = useState(true);
@@ -136,7 +137,7 @@ export default function AdminManageStartupScreen({ route, navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>←</Text>
@@ -247,7 +248,7 @@ export default function AdminManageStartupScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
       </ScrollView>
     </SafeAreaView>
   );

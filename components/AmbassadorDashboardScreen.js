@@ -1,20 +1,22 @@
 // screens/AmbassadorDashboardScreen.js - DASHBOARD AMBASSADEUR
-import React, { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
-  Share,
+  Alert,
   RefreshControl,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth } from '../config/firebase';
 import ambassadorService from '../utils/ambassadorService';
 
 export default function AmbassadorDashboardScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [ambassador, setAmbassador] = useState(null);
@@ -34,10 +36,32 @@ export default function AmbassadorDashboardScreen({ navigation }) {
       setAmbassador(result.ambassador);
 
       // Charger gains
-      const earningsResult = await ambassadorService.getAmbassadorEarnings(result.ambassador.id);
-      if (earningsResult.success) {
-        setEarnings(earningsResult.earnings);
-      }
+      // Charger gains (protegé : index Firestore + erreurs)
+try {
+  const earningsResult = await ambassadorService.getAmbassadorEarnings(result.ambassador.id);
+  if (earningsResult && earningsResult.success) {
+    setEarnings(earningsResult.earnings);
+  } else {
+    // si le service renvoie une erreur contrôlée
+    console.warn('Ambassador earnings service error:', earningsResult?.error);
+  }
+} catch (error) {
+  console.error('Erreur récupération gains (protected):', error);
+
+  // message utilisateur clair si Firebase demande un index
+  if (error?.message && error.message.includes('requires an index')) {
+    // tu peux juste logguer le lien qui est fourni par Firebase (il est dans le message d'erreur)
+    console.warn('Firestore requires a composite index. Ouvre le lien fourni dans l\'erreur Firebase pour créer l\'index.');
+    Alert.alert(
+      'Index Firestore requis',
+      "Firestore demande un index composite pour cette requête. Ouvre la console Firebase (lien disponible dans la log d'erreur) et crées l'index, puis réessaie.",
+      [{ text: 'OK' }]
+    );
+  } else {
+    Alert.alert('Erreur', 'Impossible de récupérer les gains. Réessaye plus tard.');
+  }
+}
+
 
     } catch (error) {
       console.error('Erreur chargement dashboard:', error);
@@ -93,7 +117,7 @@ export default function AmbassadorDashboardScreen({ navigation }) {
   const paidEarnings = earnings.filter(e => e.status === 'paid');
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -245,7 +269,7 @@ export default function AmbassadorDashboardScreen({ navigation }) {
           )}
         </View>
 
-        <View style={{ height: 40 }} />
+       <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
       </ScrollView>
     </SafeAreaView>
   );

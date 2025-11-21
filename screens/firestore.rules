@@ -1,0 +1,369 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // =====================================
+    // FONCTIONS HELPER
+    // =====================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function getUserData() {
+      // Nécessite la permission de lecture sur users/{userId}
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && getUserData().role == 'admin';
+    }
+    
+    function isStartupOwner(startupId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/startups/$(startupId)) &&
+        get(/databases/$(database)/documents/startups/$(startupId)).data.ownerId == request.auth.uid;
+    }
+    
+    // =====================================
+    // USERS - Profils utilisateurs
+    // =====================================
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // STARTUPS - Comptes vendeurs
+    // =====================================
+    match /startups/{startupId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid || 
+        request.auth.uid == startupId ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // PRODUCTS - Catalogue produits
+    // =====================================
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isStartupOwner(resource.data.startupId) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        isStartupOwner(resource.data.startupId) ||
+        isAdmin()
+      );
+    }
+    
+    // =====================================
+    // ORDERS - Commandes clients
+    // =====================================
+    match /orders/{orderId} {
+      allow read: if isAuthenticated(); // Requiert un filtre côté client
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // BDL ORDERS - Commandes BDL Studio
+    // =====================================
+    match /bdl_orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // BDL SERVICE ORDERS - Services créatifs
+    // =====================================
+    match /bdlServiceOrders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // PROMO CODES - Codes promotionnels
+    // =====================================
+    match /promoCodes/{promoId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (isStartupOwner(resource.data.startupId) || isAdmin());
+      allow delete: if isAuthenticated() && (isStartupOwner(resource.data.startupId) || isAdmin());
+    }
+    
+    // =====================================
+    // CONVERSATIONS - Messages privés
+    // =====================================
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated(); // Requiert un filtre côté client
+      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participants;
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin());
+      allow delete: if isAdmin();
+      
+      // Messages dans conversations
+      match /messages/{messageId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated();
+        allow delete: if isAdmin();
+      }
+    }
+    
+    // =====================================
+    // MESSAGES - Collection principale
+    // =====================================
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    
+    // =====================================
+    // FAVORITES - Favoris utilisateurs
+    // =====================================
+    match /favorites/{favoriteId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    // =====================================
+    // REVIEWS - Avis et notes
+    // =====================================
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    // =====================================
+    // NOTIFICATIONS - Notifications push
+    // =====================================
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    // =====================================
+    // ADDRESSES - Adresses de livraison
+    // =====================================
+    match /addresses/{addressId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    // =====================================
+    // PAYMENTS - Paiements
+    // =====================================
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.startupId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.startupId == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // SUBSCRIPTIONS - Abonnements startups (CORRECTION FINALE)
+    // =====================================
+    match /subscriptions/{subscriptionId} {
+      // Lecture : Autoriser les requêtes filtrées utilisées par le service JS.
+      allow read: if isAuthenticated(); 
+      
+      // Créer : Le propriétaire de la startup crée l'abonnement
+      allow create: if isAuthenticated() && isStartupOwner(request.resource.data.startupId);
+      
+      // Modifier : propriétaire de la startup ou admin
+      allow update: if isAuthenticated() && (
+        isStartupOwner(resource.data.startupId) || 
+        isAdmin()
+      );
+      
+      // Supprimer : admin uniquement
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // SUBSCRIPTION PAYMENTS - Paiements abonnements
+    // =====================================
+    match /subscriptionPayments/{paymentId} {
+      allow read: if isAuthenticated(); // Requiert un filtre côté client
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // AMBASSADORS - Comptes ambassadeurs
+    // =====================================
+    match /ambassadors/{ambassadorId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // AMBASSADOR INVITE CODES
+    // =====================================
+    match /ambassadorInviteCodes/{codeId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // AMBASSADOR EARNINGS - Gains ambassadeurs
+    // =====================================
+    match /ambassadorEarnings/{earningId} {
+      allow read: if isAuthenticated() && (resource.data.ambassadorId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // AMBASSADOR PAYMENTS - Paiements ambassadeurs
+    // =====================================
+    match /ambassadorPayments/{paymentId} {
+      allow read: if isAuthenticated() && (resource.data.ambassadorId == request.auth.uid || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // CATEGORIES - Catégories produits
+    // =====================================
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // STARTUP INVITE CODES - Codes d'accès startups
+    // =====================================
+    match /startupInviteCodes/{codeId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // DEVICE TOKENS - Tokens push notifications
+    // =====================================
+    match /deviceTokens/{tokenId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // =====================================
+    // POINTS HISTORY - Historique points fidélité
+    // =====================================
+    match /pointsHistory/{historyId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // USER REWARDS - Récompenses utilisateurs
+    // =====================================
+    match /userRewards/{rewardId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // ADMIN LOGS - Logs administrateur
+    // =====================================
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // =====================================
+    // PLATFORM SETTINGS - Paramètres plateforme
+    // =====================================
+    match /platformSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // =====================================
+    // BROADCASTS - Annonces globales
+    // =====================================
+    match /broadcasts/{broadcastId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // NOTIFICATION LOGS - Logs notifications
+    // =====================================
+    match /notificationLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // REPORTS - Signalements
+    // =====================================
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =====================================
+    // RÈGLE PAR DÉFAUT - TOUT BLOQUER
+    // =====================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

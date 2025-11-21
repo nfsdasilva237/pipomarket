@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
   ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 
 export default function ConversationsListScreen({ navigation }) {
@@ -114,7 +114,7 @@ export default function ConversationsListScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* HEADER */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>💬 Messages</Text>

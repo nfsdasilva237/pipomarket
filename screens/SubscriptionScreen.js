@@ -11,17 +11,36 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth } from '../config/firebase';
+
 import { SUBSCRIPTION_PLANS, subscriptionService } from '../utils/subscriptionService';
 
 export default function SubscriptionScreen({ navigation, route }) {
-  const startupId = route.params?.startupId || auth.currentUser?.uid;
+  const startupId = route.params?.startupId;
   const [selectedPlan, setSelectedPlan] = useState('PRO');
   const [loading, setLoading] = useState(false);
 
   const handleSubscribe = async (planId) => {
   setLoading(true);
-  
+
   try {
+
+    // ✅ Vérifier que l'utilisateur est connecté
+    if (!auth.currentUser || !startupId) {
+      Alert.alert('Erreur', 'Vous devez être connecté');
+      setLoading(false);
+      return;
+    }
+     
+    if (!startupId) {
+      Alert.alert(
+        'Erreur',
+        'Impossible de créer un abonnement. Veuillez créer une startup d\'abord.',
+        [{ text: 'OK' }]
+      );
+      setLoading(false);
+      return;
+    }
+
     // Vérifier si abonnement existe
     const subResult = await subscriptionService.getSubscription(startupId);
     
@@ -43,13 +62,14 @@ export default function SubscriptionScreen({ navigation, route }) {
       );
     } else {
       // Pas d'abonnement → CRÉER NOUVEAU
+      const selectedPlanData = SUBSCRIPTION_PLANS[planId.toUpperCase()];
       Alert.alert(
-        'Confirmer l\'abonnement',
-        `Voulez-vous souscrire au plan ${SUBSCRIPTION_PLANS[planId.toUpperCase()].name} ?\n\n🎁 1er mois GRATUIT !`,
+        '🎁 OFFRE SPÉCIALE DE BIENVENUE',
+        `🎉 SUPER NOUVELLE !\n\nPendant votre 1er mois GRATUIT, vous bénéficierez de TOUTES les fonctionnalités PREMIUM 💎 (valeur 15,000 F) !\n\n✨ Produits illimités\n✨ Commandes illimitées  \n✨ Analytics IA\n✨ TOP 3 permanent\n\nAprès l'essai, vous passerez au plan ${selectedPlanData.name} à ${selectedPlanData.price.toLocaleString()} F/mois.\n\nCommencer l'essai PREMIUM gratuit ?`,
         [
           { text: 'Annuler', style: 'cancel' },
           {
-            text: 'Confirmer',
+            text: 'Commencer l\'essai 🚀',
             onPress: async () => {
               const result = await subscriptionService.createSubscription(
                 startupId,
@@ -61,9 +81,9 @@ export default function SubscriptionScreen({ navigation, route }) {
               }
 
               Alert.alert(
-                '🎉 Abonnement activé !',
-                `Votre période d\'essai d\'1 mois commence maintenant.`,
-                [{ text: 'OK', onPress: () => navigation.goBack() }]
+                '🎉 Essai PREMIUM activé !',
+                `Félicitations ! Vous bénéficiez maintenant de TOUTES les fonctionnalités PREMIUM pendant 1 mois complet !\n\n📅 5 jours avant la fin, nous vous rappellerons pour payer ${selectedPlanData.price.toLocaleString()} F et continuer avec le plan ${selectedPlanData.name}.\n\nProfitez bien ! 🚀`,
+                [{ text: 'Génial !', onPress: () => navigation.goBack() }]
               );
             },
           },
@@ -115,7 +135,7 @@ export default function SubscriptionScreen({ navigation, route }) {
         </View>
 
         <View style={styles.trialBadge}>
-          <Text style={styles.trialText}>🎁 1er mois GRATUIT</Text>
+          <Text style={styles.trialText}>🎁 1 MOIS PREMIUM GRATUIT 💎</Text>
         </View>
 
         <View style={styles.featuresContainer}>
@@ -175,7 +195,7 @@ export default function SubscriptionScreen({ navigation, route }) {
 
           <Feature icon="💬" text={`Support ${plan.features.support}`} />
 
-          <Feature icon="💰" text={`Commission ${plan.features.commission}%`} />
+          
 
           {plan.features.customization && (
             <Feature icon="🎨" text="Personnalisation page" />
@@ -220,10 +240,13 @@ export default function SubscriptionScreen({ navigation, route }) {
       >
         <View style={styles.introSection}>
           <Text style={styles.introTitle}>
-            🚀 Boostez votre startup avec un abonnement !
+            🎁 OFFRE DE LANCEMENT EXCEPTIONNELLE !
           </Text>
           <Text style={styles.introText}>
-            Profitez d'1 mois GRATUIT pour tester toutes les fonctionnalités
+            1 MOIS PREMIUM GRATUIT (15,000 F) pour tous les nouveaux abonnés ! 💎
+          </Text>
+          <Text style={styles.introSubtext}>
+            Choisissez le plan que vous voulez payer après l'essai
           </Text>
         </View>
 
@@ -313,6 +336,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#8E8E93',
     textAlign: 'center',
+  },
+  introSubtext: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 6,
+    fontStyle: 'italic',
   },
   planCard: {
     backgroundColor: 'white',

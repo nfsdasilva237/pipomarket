@@ -1,10 +1,12 @@
-// screens/ProductDetailScreen.js
+// screens/ProductDetailScreen.js - ✅ AVEC CARROUSEL MULTI-IMAGES
 import { doc, getDoc } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,14 +17,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import RecommendationsSection from '../components/RecommendationsSection';
 import { db } from '../config/firebase';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ProductDetailScreen({ route, navigation, cart, addToCart }) {
   const { productId } = route.params;
-  
+
   const [product, setProduct] = useState(null);
   const [startup, setStartup] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalImageIndex, setModalImageIndex] = useState(0);
+
+  const scrollViewRef = useRef(null);
+  const modalScrollViewRef = useRef(null);
 
   useEffect(() => {
     loadProduct();
@@ -32,7 +41,7 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
     try {
       // Charger le produit
       const productDoc = await getDoc(doc(db, 'products', productId));
-      
+
       if (!productDoc.exists()) {
         Alert.alert('Erreur', 'Produit introuvable');
         navigation.goBack();
@@ -58,39 +67,39 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
   };
 
   const handleAddToCart = () => {
-  if (!product.available) {
-    Alert.alert('Indisponible', 'Ce produit n\'est plus disponible');
-    return;
-  }
+    if (!product.available) {
+      Alert.alert('Indisponible', 'Ce produit n\'est plus disponible');
+      return;
+    }
 
-  if (product.stock < quantity) {
-    Alert.alert('Stock insuffisant', `Seulement ${product.stock} en stock`);
-    return;
-  }
+    if (product.stock < quantity) {
+      Alert.alert('Stock insuffisant', `Seulement ${product.stock} en stock`);
+      return;
+    }
 
-  // ✅ AJOUTER startupName au produit
-  const productWithStartup = {
-    ...product,
-    startupName: startup?.name || 'PipoMarket',
+    // ✅ AJOUTER startupName au produit
+    const productWithStartup = {
+      ...product,
+      startupName: startup?.name || 'PipoMarket',
+    };
+
+    // Ajouter quantity fois
+    for (let i = 0; i < quantity; i++) {
+      addToCart(productWithStartup);
+    }
+
+    Alert.alert(
+      'Produit ajouté',
+      `${quantity}x ${product.name} ajouté${quantity > 1 ? 's' : ''} au panier`,
+      [
+        { text: 'Continuer', style: 'cancel' },
+        {
+          text: 'Voir le panier',
+          onPress: () => navigation.navigate('Home', { screen: 'CartTab' })
+        }
+      ]
+    );
   };
-
-  // Ajouter quantity fois
-  for (let i = 0; i < quantity; i++) {
-    addToCart(productWithStartup);
-  }
-
-  Alert.alert(
-    'Produit ajouté',
-    `${quantity}x ${product.name} ajouté${quantity > 1 ? 's' : ''} au panier`,
-    [
-      { text: 'Continuer', style: 'cancel' },
-      { 
-        text: 'Voir le panier', 
-        onPress: () => navigation.navigate('Home', { screen: 'CartTab' })
-      }
-    ]
-  );
-};
 
   const increaseQuantity = () => {
     if (quantity < product.stock) {
@@ -104,6 +113,38 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
     if (quantity > 1) {
       setQuantity(quantity - 1);
     }
+  };
+
+  // ✅ Gérer le scroll du carrousel
+  const handleScroll = (event) => {
+    const scrollPosition = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollPosition / SCREEN_WIDTH);
+    setCurrentImageIndex(index);
+  };
+
+  // ✅ Gérer le scroll dans le modal
+  const handleModalScroll = (event) => {
+    const scrollPosition = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollPosition / SCREEN_WIDTH);
+    setModalImageIndex(index);
+  };
+
+  // ✅ Ouvrir l'image en plein écran
+  const openImageModal = (index) => {
+    setModalImageIndex(index);
+    setModalVisible(true);
+    // Attendre que le modal soit visible avant de scroller
+    setTimeout(() => {
+      modalScrollViewRef.current?.scrollTo({
+        x: index * SCREEN_WIDTH,
+        animated: false,
+      });
+    }, 100);
+  };
+
+  // ✅ Fermer le modal
+  const closeImageModal = () => {
+    setModalVisible(false);
   };
 
   if (loading) {
@@ -126,11 +167,20 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
     );
   }
 
+  // ✅ Obtenir toutes les images (nouveau format ou ancien)
+  const productImages = product.images && Array.isArray(product.images) && product.images.length > 0
+    ? product.images
+    : product.image
+    ? [product.image]
+    : [];
+
+  const hasMultipleImages = productImages.length > 1;
+
   // Vérifier si c'est une image uploadée ou un emoji
-  const isImageUrl = product.image && (
-    product.image.startsWith('file://') || 
-    product.image.startsWith('http://') || 
-    product.image.startsWith('https://')
+  const isImageUrl = (img) => img && (
+    img.startsWith('file://') ||
+    img.startsWith('http://') ||
+    img.startsWith('https://')
   );
 
   return (
@@ -149,19 +199,59 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* IMAGE DU PRODUIT */}
+        {/* ✅ CARROUSEL D'IMAGES */}
         <View style={styles.imageContainer}>
-          {isImageUrl ? (
-            // ✅ Image uploadée
-            <Image
-              source={{ uri: product.image }}
-              style={styles.productImage}
-              resizeMode="cover"
-            />
-          ) : (
-            // ❌ Fallback emoji
-            <View style={styles.emojiContainer}>
-              <Text style={styles.productEmoji}>{product.image || '📦'}</Text>
+          <ScrollView
+            ref={scrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+          >
+            {productImages.map((image, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.imageSlide}
+                activeOpacity={0.9}
+                onPress={() => openImageModal(index)}
+              >
+                {isImageUrl(image) ? (
+                  <Image
+                    source={{ uri: image }}
+                    style={styles.productImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.emojiContainer}>
+                    <Text style={styles.productEmoji}>{image || '📦'}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* ✅ Indicateurs de pagination */}
+          {hasMultipleImages && (
+            <View style={styles.paginationContainer}>
+              {productImages.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.paginationDot,
+                    currentImageIndex === index && styles.paginationDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+
+          {/* ✅ Compteur d'images */}
+          {hasMultipleImages && (
+            <View style={styles.imageCounter}>
+              <Text style={styles.imageCounterText}>
+                {currentImageIndex + 1}/{productImages.length}
+              </Text>
             </View>
           )}
         </View>
@@ -195,11 +285,11 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
         </View>
 
         <RecommendationsSection
-  type="similar"
-  productId={product.id}
-  productCategory={product.category}
-  onProductPress={(product) => navigation.navigate('ProductDetail', { product })}
-/>
+          type="similar"
+          productId={product.id}
+          productCategory={product.category}
+          onProductPress={(product) => navigation.navigate('ProductDetail', { product })}
+        />
 
         {/* DESCRIPTION */}
         {product.description && (
@@ -276,6 +366,79 @@ export default function ProductDetailScreen({ route, navigation, cart, addToCart
           </TouchableOpacity>
         </View>
       )}
+
+      {/* ✅ MODAL ZOOM IMAGE */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeImageModal}
+      >
+        <View style={styles.modalContainer}>
+          {/* Fond semi-transparent cliquable pour fermer */}
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={closeImageModal}
+          />
+
+          {/* Bouton fermer */}
+          <TouchableOpacity style={styles.modalCloseButton} onPress={closeImageModal}>
+            <Text style={styles.modalCloseText}>✕</Text>
+          </TouchableOpacity>
+
+          {/* Compteur d'images */}
+          {productImages.length > 1 && (
+            <View style={styles.modalImageCounter}>
+              <Text style={styles.modalImageCounterText}>
+                {modalImageIndex + 1}/{productImages.length}
+              </Text>
+            </View>
+          )}
+
+          {/* Carrousel d'images en plein écran */}
+          <ScrollView
+            ref={modalScrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleModalScroll}
+            scrollEventThrottle={16}
+            style={styles.modalScrollView}
+          >
+            {productImages.map((image, index) => (
+              <View key={index} style={styles.modalImageSlide}>
+                {isImageUrl(image) ? (
+                  <Image
+                    source={{ uri: image }}
+                    style={styles.modalImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={styles.modalEmojiContainer}>
+                    <Text style={styles.modalEmoji}>{image || '📦'}</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Indicateurs de pagination */}
+          {productImages.length > 1 && (
+            <View style={styles.modalPaginationContainer}>
+              {productImages.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.modalPaginationDot,
+                    modalImageIndex === index && styles.modalPaginationDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -326,11 +489,17 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+
+  // ✅ CARROUSEL
   imageContainer: {
     width: '100%',
     height: 300,
     backgroundColor: '#F2F2F7',
-    overflow: 'hidden',
+    position: 'relative',
+  },
+  imageSlide: {
+    width: SCREEN_WIDTH,
+    height: 300,
   },
   productImage: {
     width: '100%',
@@ -345,6 +514,45 @@ const styles = StyleSheet.create({
   productEmoji: {
     fontSize: 120,
   },
+
+  // ✅ Pagination
+  paginationContainer: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    marginHorizontal: 4,
+  },
+  paginationDotActive: {
+    backgroundColor: '#007AFF',
+    width: 24,
+  },
+
+  // ✅ Compteur
+  imageCounter: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  imageCounterText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+
   infoSection: {
     backgroundColor: 'white',
     padding: 20,
@@ -512,5 +720,92 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+
+  // ✅ MODAL ZOOM
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  modalCloseText: {
+    fontSize: 28,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  modalImageCounter: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    zIndex: 10,
+  },
+  modalImageCounterText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalImageSlide: {
+    width: SCREEN_WIDTH,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalImage: {
+    width: SCREEN_WIDTH,
+    height: '100%',
+  },
+  modalEmojiContainer: {
+    width: SCREEN_WIDTH,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalEmoji: {
+    fontSize: 200,
+  },
+  modalPaginationContainer: {
+    position: 'absolute',
+    bottom: 60,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalPaginationDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    marginHorizontal: 5,
+  },
+  modalPaginationDotActive: {
+    backgroundColor: 'white',
+    width: 30,
   },
 });

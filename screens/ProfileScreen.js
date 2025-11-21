@@ -1,13 +1,14 @@
-// screens/ProfileScreen.js (AVEC ACCÈS FIDÉLITÉ)
-import { doc, getDoc, signOut } from 'firebase/firestore';
+// screens/ProfileScreen.js - ✅ VERSION FINALE CORRIGÉE (SANS ERREURS)
+import { signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, db } from '../config/firebase';
@@ -16,7 +17,7 @@ import { getUserLevel } from '../config/loyaltyConfig';
 export default function ProfileScreen({ navigation }) {
   const [userData, setUserData] = useState(null);
   const [userPoints, setUserPoints] = useState(0);
-  const [userLevel, setUserLevel] = useState({ name: 'Bronze', icon: '🥉' });
+  const [userLevel, setUserLevel] = useState({ name: 'Bronze', icon: '🥉', color: '#CD7F32' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,8 +60,13 @@ export default function ProfileScreen({ navigation }) {
         text: 'Déconnexion',
         style: 'destructive',
         onPress: async () => {
-          await signOut(auth);
-          navigation.replace('Login');
+          try {
+            await signOut(auth);
+            navigation.replace('Login');
+          } catch (error) {
+            console.error('Erreur déconnexion:', error);
+            Alert.alert('Erreur', 'Impossible de se déconnecter');
+          }
         },
       },
     ]);
@@ -77,7 +83,7 @@ export default function ProfileScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* HEADER */}
         <View style={styles.header}>
@@ -88,13 +94,15 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.profileCard}>
           <View style={styles.profileAvatar}>
             <Text style={styles.profileAvatarText}>
-              {userData?.firstName?.[0]?.toUpperCase() || '👤'}
+              {userData?.firstName?.[0]?.toUpperCase() || userData?.fullName?.[0]?.toUpperCase() || '👤'}
             </Text>
           </View>
           <Text style={styles.profileName}>
-            {userData?.firstName} {userData?.lastName}
+            {userData?.firstName && userData?.lastName 
+              ? `${userData.firstName} ${userData.lastName}`
+              : userData?.fullName || 'Utilisateur'}
           </Text>
-          <Text style={styles.profileEmail}>{userData?.email}</Text>
+          <Text style={styles.profileEmail}>{userData?.email || auth.currentUser?.email}</Text>
         </View>
 
         {/* CARTE FIDÉLITÉ */}
@@ -112,7 +120,7 @@ export default function ProfileScreen({ navigation }) {
               </View>
             </View>
             <View style={styles.loyaltyCardRight}>
-              <Text style={styles.loyaltyCardPoints}>{userPoints}</Text>
+              <Text style={styles.loyaltyCardPoints}>{userPoints.toLocaleString()}</Text>
               <Text style={styles.loyaltyCardPointsLabel}>points</Text>
             </View>
           </View>
@@ -123,7 +131,7 @@ export default function ProfileScreen({ navigation }) {
 
         {/* COMMANDES EN COURS */}
         <TouchableOpacity
-          style={[styles.ordersCard, { backgroundColor: '#FF9500' }]}
+          style={styles.ordersCard}
           onPress={() => navigation.navigate('Orders')}
           activeOpacity={0.8}
         >
@@ -144,77 +152,35 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Mon Compte</Text>
 
           <TouchableOpacity
-    style={styles.menuItem}
-    onPress={() => navigation.navigate('Favorites')}
-  >
-    <View style={styles.menuItemLeft}>
-      <Text style={styles.menuItemIcon}>❤️</Text>
-      <Text style={styles.menuItemText}>Mes favoris</Text>
-    </View>
-    <Text style={styles.menuItemArrow}>→</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity
-    style={styles.menuItem}
-    onPress={() => navigation.navigate('Addresses')}
-  >
-    <View style={styles.menuItemLeft}>
-      <Text style={styles.menuItemIcon}>📍</Text>
-      <Text style={styles.menuItemText}>Mes adresses</Text>
-    </View>
-    <Text style={styles.menuItemArrow}>→</Text>
-  </TouchableOpacity>
-</View>
-
-<View style={styles.section}>
-  <Text style={styles.sectionTitle}>Préférences</Text>
-  
-  <TouchableOpacity
-    style={styles.menuItem}
-    onPress={() => navigation.navigate('Settings')}
-  >
-    <View style={styles.menuItemLeft}>
-      <Text style={styles.menuItemIcon}>⚙️</Text>
-      <Text style={styles.menuItemText}>Paramètres du compte</Text>
-    </View>
-    <Text style={styles.menuItemArrow}>→</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity
-    style={styles.menuItem}
-    onPress={() => navigation.navigate('Notifications')}
-  >
-    <View style={styles.menuItemLeft}>
-      <Text style={styles.menuItemIcon}>🔔</Text>
-      <Text style={styles.menuItemText}>Notifications</Text>
-    </View>
-    <Text style={styles.menuItemArrow}>→</Text>
-  </TouchableOpacity>
-</View>
-
-<View style={styles.section}>
-  <Text style={styles.sectionTitle}>Support</Text>
-  
-  <TouchableOpacity
-    style={styles.menuItem}
-    onPress={() => navigation.navigate('Help')}
-  >
-    <View style={styles.menuItemLeft}>
-      <Text style={styles.menuItemIcon}>❓</Text>
-      <Text style={styles.menuItemText}>Aide & Support</Text>
-    </View>
-    <Text style={styles.menuItemArrow}>→</Text>
-  </TouchableOpacity>
-</View>
-
-        {/* PARAMÈTRES */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Paramètres</Text>
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Favorites')}
+          >
+            <View style={styles.menuItemLeft}>
+              <Text style={styles.menuItemIcon}>❤️</Text>
+              <Text style={styles.menuItemText}>Mes favoris</Text>
+            </View>
+            <Text style={styles.menuItemArrow}>→</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
+            onPress={() => navigation.navigate('Addresses')}
           >
+            <View style={styles.menuItemLeft}>
+              <Text style={styles.menuItemIcon}>📍</Text>
+              <Text style={styles.menuItemText}>Mes adresses</Text>
+            </View>
+            <Text style={styles.menuItemArrow}>→</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Préférences</Text>
+          
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Settings')
+            } >
             <View style={styles.menuItemLeft}>
               <Text style={styles.menuItemIcon}>⚙️</Text>
               <Text style={styles.menuItemText}>Paramètres du compte</Text>
@@ -224,7 +190,7 @@ export default function ProfileScreen({ navigation }) {
 
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
+            onPress={() => navigation.navigate('Notifications')}
           >
             <View style={styles.menuItemLeft}>
               <Text style={styles.menuItemIcon}>🔔</Text>
@@ -232,14 +198,41 @@ export default function ProfileScreen({ navigation }) {
             </View>
             <Text style={styles.menuItemArrow}>→</Text>
           </TouchableOpacity>
+        </View>
 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Support</Text>
+          
           <TouchableOpacity
             style={styles.menuItem}
-            onPress={() => Alert.alert('Info', 'Fonctionnalité à venir')}
+            onPress={() => {
+              Alert.alert(
+                'Aide & Support',
+                'Pour toute question, contactez-nous:\n\nEmail: support@pipomarket.cm\nTél: +237 XXX XXX XXX',
+                [{ text: 'OK' }]
+              );
+            }}
           >
             <View style={styles.menuItemLeft}>
               <Text style={styles.menuItemIcon}>❓</Text>
               <Text style={styles.menuItemText}>Aide & Support</Text>
+            </View>
+            <Text style={styles.menuItemArrow}>→</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              Alert.alert(
+                'À propos',
+                'PipoMarket v2.0.0\n\nMarketplace des startups camerounaises\n\nDéveloppé par BDL Studio',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
+            <View style={styles.menuItemLeft}>
+              <Text style={styles.menuItemIcon}>ℹ️</Text>
+              <Text style={styles.menuItemText}>À propos</Text>
             </View>
             <Text style={styles.menuItemArrow}>→</Text>
           </TouchableOpacity>
@@ -254,7 +247,8 @@ export default function ProfileScreen({ navigation }) {
 
         {/* VERSION */}
         <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>Version 1.0.0</Text>
+          <Text style={styles.versionText}>PipoMarket v2.0.0</Text>
+          <Text style={styles.versionSubtext}>Propulsé par BDL Studio</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -269,40 +263,6 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  ordersCard: {
-    backgroundColor: '#FF9500',
-    borderRadius: 15,
-    margin: 15,
-    padding: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  ordersCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  ordersCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ordersCardIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  ordersCardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: 'white',
-  },
-  ordersCardSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 2,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -315,6 +275,8 @@ const styles = StyleSheet.create({
   header: {
     padding: 20,
     backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
   },
   headerTitle: {
     fontSize: 28,
@@ -361,7 +323,7 @@ const styles = StyleSheet.create({
   },
   loyaltyCard: {
     marginHorizontal: 20,
-    marginBottom: 24,
+    marginBottom: 16,
     borderRadius: 16,
     padding: 20,
     shadowColor: '#000',
@@ -423,6 +385,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+  ordersCard: {
+    backgroundColor: '#FF9500',
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginBottom: 24,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  ordersCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  ordersCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  ordersCardIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  ordersCardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  ordersCardSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginTop: 2,
+  },
   section: {
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -470,6 +468,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   logoutButtonText: {
     color: 'white',
@@ -479,9 +482,16 @@ const styles = StyleSheet.create({
   versionContainer: {
     alignItems: 'center',
     paddingVertical: 20,
+    paddingBottom: 40,
   },
   versionText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#8E8E93',
+    fontWeight: '600',
+  },
+  versionSubtext: {
+    fontSize: 11,
+    color: '#C7C7CC',
+    marginTop: 4,
   },
 });

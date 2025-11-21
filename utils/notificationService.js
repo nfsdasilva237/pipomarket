@@ -3,7 +3,7 @@ import { addDoc, collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { Platform } from 'react-native';
 import { db } from '../config/firebase';
-
+const PROJECT_ID = '3f8ec7c1-7205-4e25-b828-983ac5f9d117'; // ← Récupère-le depuis expo.de
 export const notificationService = {
   // Vérifier que l'utilisateur existe
   _ensureUserExists: async (userId) => {

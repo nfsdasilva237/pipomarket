@@ -1,25 +1,24 @@
-// utils/chatService.js
+// utils/chatService.js - ✅ AVEC IMGBB
 import {
-    addDoc,
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    onSnapshot,
-    orderBy,
-    query,
-    updateDoc,
-    where
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  updateDoc,
+  where
 } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { db, storage } from '../config/firebase';
+import { db } from '../config/firebase';
+import imageService from './imageService';
 import { notificationService } from './notificationService';
 
 export const chatService = {
   // Créer ou récupérer une conversation
   getOrCreateConversation: async (userId, startupId) => {
     try {
-      // Vérifier si une conversation existe déjà
       const q = query(
         collection(db, 'conversations'),
         where('participants', '==', [userId, startupId].sort())
@@ -35,7 +34,6 @@ export const chatService = {
         };
       }
 
-      // Si non, créer une nouvelle conversation
       const [userDoc, startupDoc] = await Promise.all([
         getDoc(doc(db, 'users', userId)),
         getDoc(doc(db, 'startups', startupId))
@@ -44,7 +42,6 @@ export const chatService = {
       const userData = userDoc.data();
       const startupData = startupDoc.data();
 
-      // Préparation des informations des participants
       const userInfo = {
         id: userId,
         name: userData?.fullName || 'Utilisateur',
@@ -69,7 +66,13 @@ export const chatService = {
           [userId]: userInfo,
           [startupId]: startupInfo
         },
+        userId: userId,
+        startupId: startupId,
+        startupName: startupData?.name || 'Startup',
         lastMessage: null,
+        lastMessageTime: new Date(),
+        unreadStartup: 0,
+        unreadUser: 0,
         updatedAt: new Date(),
         createdAt: new Date()
       };
@@ -91,7 +94,7 @@ export const chatService = {
     try {
       const conversationRef = doc(db, 'conversations', conversationId);
       const conversationDoc = await getDoc(conversationRef);
-      
+
       if (!conversationDoc.exists()) {
         throw new Error('Conversation introuvable');
       }
@@ -99,18 +102,27 @@ export const chatService = {
       const conversationData = conversationDoc.data();
       const recipient = conversationData.participants.find(id => id !== senderId);
 
-      // Si c'est une image, l'uploader d'abord
+      // ✅ Upload avec ImgBB
       let imageUrl = null;
       if (type === 'image' && imageUri) {
-        const response = await fetch(imageUri);
-        const blob = await response.blob();
-        const imageName = `chat/${conversationId}/${Date.now()}.jpg`;
-        const imageRef = ref(storage, imageName);
-        await uploadBytes(imageRef, blob);
-        imageUrl = await getDownloadURL(imageRef);
+        try {
+          console.log('📤 Upload image chat...');
+
+          const uploadResult = await imageService.uploadImage(imageUri);
+
+          if (!uploadResult.success) {
+            throw new Error(uploadResult.error || 'Échec upload');
+          }
+
+          imageUrl = uploadResult.url;
+          console.log('✅ Image uploadée:', imageUrl);
+
+        } catch (uploadError) {
+          console.error('❌ Erreur upload:', uploadError);
+          throw new Error(`Échec upload: ${uploadError.message}`);
+        }
       }
 
-      // Créer le message
       const messageData = {
         senderId,
         type,
@@ -120,79 +132,78 @@ export const chatService = {
         delivered: false
       };
 
-      // Ajouter le message
       await addDoc(collection(db, 'conversations', conversationId, 'messages'), messageData);
 
-      // Mettre à jour la conversation
-      await updateDoc(conversationRef, {
-        lastMessage: {
-          content: type === 'text' ? message : '📷 Photo',
-          timestamp: new Date(),
-          senderId
-        },
+      const recipientInfo = conversationData.participantsInfo[recipient];
+      const isRecipientStartup = recipientInfo?.type === 'startup';
+
+      const updateData = {
+        lastMessage: type === 'text' ? message : '📷 Photo',
+        lastMessageTime: new Date(),
         updatedAt: new Date(),
         [`unreadCount.${recipient}`]: (conversationData.unreadCount?.[recipient] || 0) + 1
-      });
+      };
 
-      // Envoyer notification
+      if (isRecipientStartup) {
+        updateData.unreadStartup = (conversationData.unreadStartup || 0) + 1;
+      } else {
+        updateData.unreadUser = (conversationData.unreadUser || 0) + 1;
+      }
+
+      await updateDoc(conversationRef, updateData);
+
       const senderInfo = conversationData.participantsInfo[senderId];
-      const recipientInfo = conversationData.participantsInfo[recipient];
 
-      if (recipientInfo.type === 'startup') {
+      if (isRecipientStartup) {
         await notificationService.sendNotificationToStartup(
           recipient,
           '💬 Nouveau message',
           `${senderInfo.name}: ${type === 'text' ? message : '📷 Photo'}`,
-          {
-            type: 'new_message',
-            conversationId,
-            senderId,
-            messageType: type
-          }
+          { type: 'new_message', conversationId, senderId, messageType: type }
         );
       } else {
         await notificationService.sendNotificationToUser(
           recipient,
           '💬 Nouveau message',
           `${senderInfo.name}: ${type === 'text' ? message : '📷 Photo'}`,
-          {
-            type: 'new_message',
-            conversationId,
-            senderId,
-            messageType: type
-          }
+          { type: 'new_message', conversationId, senderId, messageType: type }
         );
       }
 
       return { success: true, message: messageData };
     } catch (error) {
-      console.error('Erreur envoi message:', error);
+      console.error('❌ Erreur envoi message:', error);
       return { success: false, error: error.message };
     }
   },
 
-  // Marquer les messages comme lus
-  markMessagesAsRead: async (conversationId, userId) => {
+  markMessagesAsRead: async (conversationId, userId, isStartup = false) => {
     try {
       const conversationRef = doc(db, 'conversations', conversationId);
-      
-      // Mettre à jour le compteur de messages non lus
-      await updateDoc(conversationRef, {
-        [`unreadCount.${userId}`]: 0
-      });
 
-      // Marquer tous les messages non lus comme lus
+      const updateData = {
+        [`unreadCount.${userId}`]: 0
+      };
+
+      if (isStartup) {
+        updateData.unreadStartup = 0;
+      } else {
+        updateData.unreadUser = 0;
+      }
+
+      await updateDoc(conversationRef, updateData);
+
       const q = query(
         collection(db, 'conversations', conversationId, 'messages'),
         where('read', '==', false)
       );
-      
+
       const unreadMessages = await getDocs(q);
-      
+
       const updatePromises = unreadMessages.docs.map(doc =>
         updateDoc(doc.ref, { read: true, readAt: new Date() })
       );
-      
+
       await Promise.all(updatePromises);
 
       return { success: true };
@@ -202,7 +213,6 @@ export const chatService = {
     }
   },
 
-  // Observer une conversation en temps réel
   subscribeToConversation: (conversationId, callback) => {
     const messagesQuery = query(
       collection(db, 'conversations', conversationId, 'messages'),
@@ -221,7 +231,6 @@ export const chatService = {
     return unsubscribe;
   },
 
-  // Observer les mises à jour de la conversation
   subscribeToConversationUpdates: (conversationId, callback) => {
     const unsubscribe = onSnapshot(doc(db, 'conversations', conversationId), (doc) => {
       if (doc.exists()) {
@@ -232,7 +241,6 @@ export const chatService = {
     return unsubscribe;
   },
 
-  // Récupérer la liste des conversations d'un utilisateur
   getUserConversations: async (userId) => {
     try {
       const q = query(
@@ -256,7 +264,6 @@ export const chatService = {
     }
   },
 
-  // Observer les conversations d'un utilisateur en temps réel
   subscribeToUserConversations: (userId, callback) => {
     const q = query(
       collection(db, 'conversations'),

@@ -1,5 +1,4 @@
-// utils/loyaltyUtils.js
-// Fonctions utilitaires pour gérer les points de fidélité
+// utils/loyaltyUtils.js - ✅ MIS À JOUR
 
 import {
   addDoc,
@@ -15,28 +14,23 @@ import { calculatePoints, loyaltyConfig } from '../config/loyaltyConfig';
 
 /**
  * Attribuer des points après un achat
- * @param {string} userId - ID de l'utilisateur
- * @param {number} orderAmount - Montant de la commande en FCFA
- * @param {string} orderId - ID de la commande
- * @returns {Promise<Object>} - Points gagnés
  */
 export const awardPointsForPurchase = async (userId, orderAmount, orderId) => {
   try {
-    // Récupérer les points actuels de l'utilisateur
     const userRef = doc(db, 'users', userId);
     const userDoc = await getDoc(userRef);
     const currentPoints = userDoc.data()?.loyaltyPoints || 0;
 
-    // Calculer les points gagnés
+    // Calculer points gagnés
     const pointsEarned = calculatePoints(orderAmount, currentPoints);
 
-    // Mettre à jour les points de l'utilisateur
+    // Mettre à jour les points
     await updateDoc(userRef, {
       loyaltyPoints: increment(pointsEarned.totalPoints),
       lastPointsUpdate: serverTimestamp(),
     });
 
-    // Créer une entrée dans l'historique
+    // Historique
     await addDoc(collection(db, 'pointsHistory'), {
       userId,
       orderId,
@@ -46,36 +40,27 @@ export const awardPointsForPurchase = async (userId, orderAmount, orderId) => {
       bonusPoints: pointsEarned.bonusPoints,
       level: pointsEarned.level,
       orderAmount,
-      description: `Achat de ${orderAmount} FCFA`,
+      description: `Achat de ${orderAmount.toLocaleString()} FCFA`,
       createdAt: serverTimestamp(),
     });
 
-    console.log(
-      `✅ ${pointsEarned.totalPoints} points attribués à ${userId} (${pointsEarned.basePoints} base + ${pointsEarned.bonusPoints} bonus)`
-    );
+    console.log(`✅ ${pointsEarned.totalPoints} points attribués`);
 
     return pointsEarned;
   } catch (error) {
-    console.error('Erreur attribution points:', error);
+    console.error('❌ Erreur attribution points:', error);
     throw error;
   }
 };
 
 /**
  * Échanger des points contre une récompense
- * @param {string} userId - ID de l'utilisateur
- * @param {string} rewardId - ID de la récompense
- * @returns {Promise<Object>} - Récompense créée
  */
 export const redeemReward = async (userId, rewardId) => {
   try {
-    // Trouver la récompense
     const reward = loyaltyConfig.rewards.find((r) => r.id === rewardId);
-    if (!reward) {
-      throw new Error('Récompense introuvable');
-    }
+    if (!reward) throw new Error('Récompense introuvable');
 
-    // Vérifier les points de l'utilisateur
     const userRef = doc(db, 'users', userId);
     const userDoc = await getDoc(userRef);
     const currentPoints = userDoc.data()?.loyaltyPoints || 0;
@@ -90,24 +75,25 @@ export const redeemReward = async (userId, rewardId) => {
       lastPointsUpdate: serverTimestamp(),
     });
 
-    // Créer la récompense pour l'utilisateur
+    // Créer la récompense
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 90); // Expire dans 90 jours
+    expiresAt.setDate(expiresAt.getDate() + 90);
 
     const userRewardRef = await addDoc(collection(db, 'userRewards'), {
       userId,
       rewardId: reward.id,
-      name: reward.name,
-      description: reward.description,
+      rewardName: reward.name,
+      rewardType: reward.type,
+      rewardValue: reward.value,
+      pointsSpent: reward.pointsCost,
       icon: reward.icon,
-      type: reward.type,
-      value: reward.value,
+      paidBy: reward.paidBy,
       used: false,
-      createdAt: serverTimestamp(),
+      redeemedAt: serverTimestamp(),
       expiresAt,
     });
 
-    // Créer une entrée dans l'historique
+    // Historique
     await addDoc(collection(db, 'pointsHistory'), {
       userId,
       type: 'redeemed',
@@ -117,9 +103,7 @@ export const redeemReward = async (userId, rewardId) => {
       createdAt: serverTimestamp(),
     });
 
-    console.log(
-      `✅ Récompense ${reward.name} échangée pour ${userId} (-${reward.pointsCost} points)`
-    );
+    console.log(`✅ Récompense ${reward.name} échangée`);
 
     return {
       id: userRewardRef.id,
@@ -127,16 +111,13 @@ export const redeemReward = async (userId, rewardId) => {
       expiresAt,
     };
   } catch (error) {
-    console.error('Erreur échange récompense:', error);
+    console.error('❌ Erreur échange récompense:', error);
     throw error;
   }
 };
 
 /**
- * Utiliser une récompense lors d'un achat
- * @param {string} userRewardId - ID de la récompense utilisateur
- * @param {string} orderId - ID de la commande
- * @returns {Promise<void>}
+ * Utiliser une récompense
  */
 export const useReward = async (userRewardId, orderId) => {
   try {
@@ -147,43 +128,15 @@ export const useReward = async (userRewardId, orderId) => {
       orderId,
     });
 
-    console.log(`✅ Récompense ${userRewardId} utilisée pour commande ${orderId}`);
+    console.log(`✅ Récompense utilisée`);
   } catch (error) {
-    console.error('Erreur utilisation récompense:', error);
+    console.error('❌ Erreur utilisation récompense:', error);
     throw error;
   }
 };
 
-/**
- * Appliquer une récompense au montant de la commande
- * @param {number} orderAmount - Montant original de la commande
- * @param {Object} reward - Récompense à appliquer
- * @returns {Object} - Nouveau montant et détails de la réduction
- */
-export const applyRewardToOrder = (orderAmount, reward) => {
-  if (!reward) {
-    return {
-      originalAmount: orderAmount,
-      discount: 0,
-      finalAmount: orderAmount,
-      freeDelivery: false,
-    };
-  }
-
-  let discount = 0;
-  let freeDelivery = false;
-
-  if (reward.type === 'discount') {
-    discount = Math.round((orderAmount * reward.value) / 100);
-  } else if (reward.type === 'free_delivery') {
-    freeDelivery = true;
-  }
-
-  return {
-    originalAmount: orderAmount,
-    discount,
-    finalAmount: orderAmount - discount,
-    freeDelivery,
-    rewardName: reward.name,
-  };
+export default {
+  awardPointsForPurchase,
+  redeemReward,
+  useReward,
 };

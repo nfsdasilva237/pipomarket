@@ -12,11 +12,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { auth, db } from '../config/firebase';
 import adminService from '../utils/adminService';
 
 export default function AdminManagePromoCodesScreen({ navigation }) {
+    const insets = useSafeAreaInsets(); // ← Ajouté pour SafeAreaInsets
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [promoCodes, setPromoCodes] = useState([]);
@@ -197,7 +198,7 @@ export default function AdminManagePromoCodesScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -412,7 +413,7 @@ export default function AdminManagePromoCodesScreen({ navigation }) {
           ))
         )}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: Math.max(insets.bottom + 20, 80) }} />
       </ScrollView>
 
       {/* BOUTON FLOTTANT */}

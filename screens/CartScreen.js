@@ -11,14 +11,15 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import PaymentModal from '../components/PaymentModal';
+import OrderConfirmationModal from '../components/OrderConfirmationModal';
 import { auth, db } from '../config/firebase';
 import { calculatePoints } from '../config/loyaltyConfig';
+import notificationService from '../utils/notificationService';
 
 export default function CartScreen({ navigation, route, cart, updateQuantity, removeFromCart }) {
   const [userPoints, setUserPoints] = useState(0);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-  const [orderData, setOrderData] = useState(null);
+  const [confirmationData, setConfirmationData] = useState(null);
   const [groupedCart, setGroupedCart] = useState({});
 
   useEffect(() => {
@@ -98,7 +99,7 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
   const handleCheckoutStartup = async (startupId, items) => {
     try {
       // 1. Calculer total pour cette startup
-      const startupTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const startupTotal = items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
 
       // 2. Créer commande
       const orderItems = items.map(item => ({
@@ -155,20 +156,51 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
         return;
       }
 
-      // 4. Préparer données paiement
-      const finalPhone = startupData.ownerPhone || startupData.phone || '+237600000000';
+      // ✅ ENVOYER NOTIFICATION À LA STARTUP
+      try {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        const customerName = userData.fullName || userData.name || 'Client';
 
-      setOrderData({
+        await notificationService.sendNotificationToStartup(
+          finalStartupId,
+          '🛍️ Nouvelle commande !',
+          `Vous avez reçu une nouvelle commande de ${startupTotal.toLocaleString('fr-FR')} FCFA`,
+          {
+            type: 'new_order',
+            orderId: order.id,
+            shortOrderId: order.id.slice(0, 8),
+            total: startupTotal,
+            itemCount: items.length,
+            customerName: customerName
+          }
+        );
+        console.log(`✅ Notification envoyée à startup ${startupData.name}`);
+      } catch (notifError) {
+        console.error('⚠️ Erreur notification startup:', notifError);
+        // Ne pas bloquer la commande si notification échoue
+      }
+
+      // 4. Préparer données pour OrderConfirmationModal
+      const mtnPhone = startupData.mtnPhone || startupData.ownerPhone || startupData.phone || '+237600000000';
+      const orangePhone = startupData.orangePhone || startupData.ownerPhone || startupData.phone || '+237600000000';
+
+      setConfirmationData({
         orderId: order.id,
-        startupId: finalStartupId,
-        userId: auth.currentUser.uid,
         total: startupTotal,
-        startupPhone: finalPhone,
-        startupName: startupData.name || 'PipoMarket',
-        operator: 'mtn',
+        paymentMethod: 'mobile_money',
+        mobileMoneyProvider: 'mtn', // Par défaut MTN
+        startupPayments: [{
+          id: finalStartupId,
+          name: startupData.name || 'PipoMarket',
+          total: startupTotal,
+          mtnPhone: mtnPhone,
+          orangePhone: orangePhone,
+        }],
+        userId: auth.currentUser.uid,
       });
 
-      console.log('✅ Paiement préparé pour:', startupData.name, startupTotal, 'F');
+      console.log('✅ Confirmation préparée pour:', startupData.name, startupTotal, 'F');
 
       // 5. Ouvrir modal
       setPaymentModalVisible(true);
@@ -185,7 +217,7 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
     itemsToRemove.forEach(item => removeFromCart(item.id));
   };
 
-  const totalCart = cart?.reduce((sum, item) => sum + item.price * item.quantity, 0) || 0;
+  const totalCart = cart?.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) || 0;
   const pointsToEarn = calculatePoints(totalCart, userPoints);
 
   return (
@@ -242,7 +274,7 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
 
             {/* ✅ AFFICHER PAR STARTUP */}
             {Object.entries(groupedCart).map(([startupId, items]) => {
-              const startupTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+              const startupTotal = items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
               const startupPoints = calculatePoints(startupTotal, userPoints);
 
               return (
@@ -287,7 +319,7 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
                       <View style={styles.cartItemInfo}>
                         <Text style={styles.cartItemName}>{item.name}</Text>
                         <Text style={styles.cartItemPrice}>
-                          {item.price.toLocaleString()} FCFA
+                          {(item.price || 0).toLocaleString()} FCFA
                         </Text>
                       </View>
                       <View style={styles.cartItemActions}>
@@ -358,34 +390,31 @@ export default function CartScreen({ navigation, route, cart, updateQuantity, re
         )}
       </ScrollView>
 
-      {/* MODAL PAIEMENT */}
-      <PaymentModal
-        visible={paymentModalVisible}
-        onClose={() => setPaymentModalVisible(false)}
-        orderData={orderData}
-        onPaymentConfirmed={() => {
-          setPaymentModalVisible(false);
-          // Retirer items de la startup payée
-          if (orderData?.startupId) {
-            removeStartupFromCart(orderData.startupId);
-          }
-          Alert.alert(
-            'Paiement enregistré',
-            'Votre paiement a été enregistré. La startup va confirmer.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  // Si plus d'items, retour home
-                  if (!cart || cart.filter(item => item.startupId !== orderData?.startupId).length === 0) {
-                    navigation.navigate('HomeTab');
-                  }
-                }
-              }
-            ]
-          );
-        }}
-      />
+      {/* MODAL CONFIRMATION */}
+      {confirmationData && (
+        <OrderConfirmationModal
+          visible={paymentModalVisible}
+          onClose={() => {
+            setPaymentModalVisible(false);
+            setConfirmationData(null);
+          }}
+          orderId={confirmationData.orderId}
+          total={confirmationData.total}
+          paymentMethod={confirmationData.paymentMethod}
+          mobileMoneyProvider={confirmationData.mobileMoneyProvider}
+          startupPayments={confirmationData.startupPayments}
+          userId={confirmationData.userId}
+          onViewOrders={() => {
+            setPaymentModalVisible(false);
+            setConfirmationData(null);
+            // Retirer items de la startup payée
+            if (confirmationData.startupPayments && confirmationData.startupPayments.length > 0) {
+              removeStartupFromCart(confirmationData.startupPayments[0].id);
+            }
+            navigation.navigate('Orders');
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
