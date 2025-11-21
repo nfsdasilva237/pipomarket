@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import RecommendationsSection from '../components/RecommendationsSection';
+import BannerAd from '../components/BannerAd';
 import { auth, db } from '../config/firebase';
 import { getUserLevel } from '../config/loyaltyConfig';
 import { appConfig } from '../data/appData';
 import categoryService from '../utils/categoryService';
+import { getCurrentStartupOfMonth } from '../utils/startupOfMonthService';
 
 export default function HomeScreen({ navigation }) {
   // ========== ÉTATS ==========
@@ -23,10 +25,11 @@ export default function HomeScreen({ navigation }) {
   const [premiumStartups, setPremiumStartups] = useState([]);
   const [randomProducts, setRandomProducts] = useState([]);
   const [categories, setCategories] = useState([{ id: 'all', name: 'Tout', icon: '🛍️' }]);
-  
+  const [startupOfMonth, setStartupOfMonth] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [loadingCategories, setLoadingCategories] = useState(true);
-  
+
   const [userPoints, setUserPoints] = useState(0);
   const [userLevel, setUserLevel] = useState({ name: 'Bronze', icon: '🥉', color: '#CD7F32' });
 
@@ -63,7 +66,7 @@ export default function HomeScreen({ navigation }) {
         where('subscriptionStatus', 'in', ['trial', 'active']),
         limit(3)
       );
-      
+
       const premiumSnap = await getDocs(premiumQ);
       const premium = premiumSnap.docs.map(doc => ({
         id: doc.id,
@@ -74,6 +77,16 @@ export default function HomeScreen({ navigation }) {
       setPremiumStartups(premium);
     } catch (error) {
       console.error('Erreur chargement premium startups:', error);
+    }
+  };
+
+  // Charger la Startup du Mois
+  const loadStartupOfMonth = async () => {
+    try {
+      const startup = await getCurrentStartupOfMonth();
+      setStartupOfMonth(startup);
+    } catch (error) {
+      console.error('Erreur chargement Startup du mois:', error);
     }
   };
 
@@ -219,6 +232,7 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     loadCategories();
     loadPremiumStartups();
+    loadStartupOfMonth();
     loadStartups();
     loadUserPoints();
     loadRandomProducts();
@@ -229,6 +243,7 @@ export default function HomeScreen({ navigation }) {
     const unsubscribe = navigation.addListener('focus', () => {
       loadCategories();
       loadPremiumStartups();
+      loadStartupOfMonth();
       loadStartups();
       loadUserPoints();
       loadRandomProducts();
@@ -273,10 +288,10 @@ export default function HomeScreen({ navigation }) {
 
         {/* ==================== RECHERCHE ==================== */}
         <View style={styles.searchContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.searchBar}
-            onPress={() => navigation.navigate('IntelligentSearch', { 
-              allProducts: randomProducts 
+            onPress={() => navigation.navigate('IntelligentSearch', {
+              allProducts: randomProducts
             })}
           >
             <Text style={styles.searchIcon}>🔍</Text>
@@ -286,9 +301,14 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* ==================== BANNIÈRE PUBLICITAIRE ==================== */}
+        <View style={styles.bannerSection}>
+          <BannerAd placement="home_banner" />
+        </View>
+
         {/* ==================== ASSISTANT IA ==================== */}
         <View style={styles.aiSection}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.aiButton}
             onPress={() => navigation.navigate('PipBot')}
             activeOpacity={0.8}
@@ -305,6 +325,50 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.aiButtonArrow}>→</Text>
           </TouchableOpacity>
         </View>
+
+        {/* ==================== STARTUP DU MOIS ==================== */}
+        {startupOfMonth && (
+          <View style={styles.startupOfMonthSection}>
+            <View style={styles.startupOfMonthHeader}>
+              <Text style={styles.startupOfMonthBadge}>🏆 STARTUP DU MOIS</Text>
+              <Text style={styles.startupOfMonthTitle}>Découvrez notre coup de cœur</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.startupOfMonthCard}
+              onPress={() => navigation.navigate('StartupDetail', {
+                startupId: startupOfMonth.startupId
+              })}
+              activeOpacity={0.9}
+            >
+              <View style={styles.startupOfMonthContent}>
+                <View style={styles.startupOfMonthLogoContainer}>
+                  <Text style={styles.startupOfMonthLogo}>
+                    {startupOfMonth.startupLogo || '🏪'}
+                  </Text>
+                  <View style={styles.startupOfMonthGlow} />
+                </View>
+
+                <View style={styles.startupOfMonthInfo}>
+                  <Text style={styles.startupOfMonthName} numberOfLines={1}>
+                    {startupOfMonth.startupName}
+                  </Text>
+                  <Text style={styles.startupOfMonthDescription}>
+                    Mise en avant ce mois-ci pour son excellence
+                  </Text>
+
+                  <View style={styles.startupOfMonthAction}>
+                    <Text style={styles.startupOfMonthActionText}>Découvrir →</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.startupOfMonthDecoration}>
+                <Text style={styles.startupOfMonthDecorationText}>⭐</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ==================== TOP 3 PREMIUM ==================== */}
         {premiumStartups.length > 0 && (
@@ -648,6 +712,9 @@ const styles = StyleSheet.create({
   searchIcon: { fontSize: 20, marginRight: 8 },
   searchPlaceholder: { flex: 1, fontSize: 15, color: '#8E8E93' },
   
+  // Banner Section
+  bannerSection: { paddingHorizontal: 20, marginTop: 12 },
+
   // Assistant IA
   aiSection: { paddingHorizontal: 20, marginTop: 12 },
   aiButton: { backgroundColor: 'white', borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3, borderWidth: 2, borderColor: '#E3F2FD' },
@@ -657,6 +724,24 @@ const styles = StyleSheet.create({
   aiButtonTitle: { fontSize: 16, fontWeight: 'bold', color: '#007AFF', marginBottom: 2 },
   aiButtonSubtitle: { fontSize: 12, color: '#8E8E93' },
   aiButtonArrow: { fontSize: 20, color: '#007AFF', fontWeight: 'bold' },
+
+  // Startup du Mois
+  startupOfMonthSection: { paddingHorizontal: 20, marginTop: 20 },
+  startupOfMonthHeader: { marginBottom: 16 },
+  startupOfMonthBadge: { fontSize: 12, fontWeight: 'bold', color: '#FFD700', letterSpacing: 1, marginBottom: 4 },
+  startupOfMonthTitle: { fontSize: 18, fontWeight: 'bold', color: '#000' },
+  startupOfMonthCard: { backgroundColor: 'white', borderRadius: 20, padding: 20, shadowColor: '#FFD700', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8, borderWidth: 2, borderColor: '#FFF9E6', position: 'relative', overflow: 'hidden' },
+  startupOfMonthContent: { flexDirection: 'row', alignItems: 'center' },
+  startupOfMonthLogoContainer: { width: 80, height: 80, backgroundColor: '#FFF9E6', borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginRight: 16, position: 'relative', shadowColor: '#FFD700', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+  startupOfMonthLogo: { fontSize: 40, zIndex: 2 },
+  startupOfMonthGlow: { position: 'absolute', width: 60, height: 60, backgroundColor: '#FFD700', opacity: 0.2, borderRadius: 30 },
+  startupOfMonthInfo: { flex: 1 },
+  startupOfMonthName: { fontSize: 18, fontWeight: 'bold', color: '#000', marginBottom: 4 },
+  startupOfMonthDescription: { fontSize: 12, color: '#666', marginBottom: 12, lineHeight: 18 },
+  startupOfMonthAction: { backgroundColor: '#FFD700', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, alignSelf: 'flex-start' },
+  startupOfMonthActionText: { fontSize: 13, fontWeight: 'bold', color: '#000' },
+  startupOfMonthDecoration: { position: 'absolute', top: -20, right: -20, width: 80, height: 80, backgroundColor: '#FFD700', opacity: 0.1, borderRadius: 40 },
+  startupOfMonthDecorationText: { fontSize: 60, opacity: 0.3 },
   
   // Premium Section
   premiumSection: { backgroundColor: 'white', marginTop: 16, paddingVertical: 20 },
