@@ -352,7 +352,11 @@ export default function HomeScreen({ navigation }) {
             >
               <LinearGradient colors={['#FFD700', '#FFA500']} style={styles.startupMonthGradient}>
                 <View style={styles.startupMonthLogoBox}>
-                  <Text style={styles.startupMonthLogo}>{startupOfMonth.startupLogo || '🏪'}</Text>
+                  {isImageUrl(startupOfMonth.startupLogo) ? (
+                    <Image source={{ uri: startupOfMonth.startupLogo }} style={styles.startupMonthLogoImg} resizeMode="cover" />
+                  ) : (
+                    <Text style={styles.startupMonthLogo}>{startupOfMonth.startupLogo || '🏪'}</Text>
+                  )}
                 </View>
                 <View style={styles.startupMonthInfo}>
                   <Text style={styles.startupMonthName}>{startupOfMonth.startupName}</Text>
@@ -658,8 +662,9 @@ const styles = StyleSheet.create({
   // Startup du Mois
   startupMonthCard: { borderRadius: 24, overflow: 'hidden', shadowColor: COLORS.gold, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 10 },
   startupMonthGradient: { padding: 24, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
-  startupMonthLogoBox: { width: 72, height: 72, backgroundColor: 'white', borderRadius: 36, justifyContent: 'center', alignItems: 'center', marginRight: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
+  startupMonthLogoBox: { width: 72, height: 72, backgroundColor: 'white', borderRadius: 36, justifyContent: 'center', alignItems: 'center', marginRight: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5, overflow: 'hidden' },
   startupMonthLogo: { fontSize: 36 },
+  startupMonthLogoImg: { width: '100%', height: '100%', borderRadius: 36 },
   startupMonthInfo: { flex: 1 },
   startupMonthName: { fontSize: 20, fontWeight: 'bold', color: 'white', marginBottom: 4 },
   startupMonthDesc: { fontSize: 13, color: 'rgba(255,255,255,0.9)', marginBottom: 12 },

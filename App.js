@@ -12,6 +12,7 @@ import AddProductScreen from './screens/AddProductScreen';
 import AddressesScreen from './screens/AddressesScreen';
 import AdminAddStartupScreen from './screens/AdminAddStartupScreen';
 import AdminDashboardScreen from './screens/AdminDashboardScreen';
+import AdminBoostRequestsScreen from './screens/AdminBoostRequestsScreen';
 import AdminManageAmbassadorCodesScreen from './screens/AdminManageAmbassadorCodesScreen';
 import AdminManageCategoriesScreen from './screens/AdminManageCategoriesScreen';
 import AdminManagePromoCodesScreen from './screens/AdminManagePromoCodesScreen';
@@ -645,6 +646,11 @@ const saveCartToStorage = async () => {
   options={{ headerShown: false }}
 />
 
+<Stack.Screen
+  name="AdminBoostRequests"
+  component={AdminBoostRequestsScreen}
+  options={{ headerShown: false }}
+/>
 
         {/* ✅ GESTION CODES PROMO */}
 <Stack.Screen 

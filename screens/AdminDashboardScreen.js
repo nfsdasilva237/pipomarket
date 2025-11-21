@@ -521,6 +521,15 @@ export default function AdminDashboardScreen({ navigation }) {
       <Text style={styles.actionIcon}>🎁</Text>
       <Text style={styles.actionText}>Gérer Promos</Text>
     </TouchableOpacity>
+
+    {/* ✅ NOUVEAU: Bouton Demandes Boost */}
+    <TouchableOpacity
+      style={[styles.actionCard, { backgroundColor: '#FF9500' }]}
+      onPress={() => navigation.navigate('AdminBoostRequests')}
+    >
+      <Text style={styles.actionIcon}>🚀</Text>
+      <Text style={styles.actionText}>Demandes Boost</Text>
+    </TouchableOpacity>
   </View>
 </View>
           </View>
