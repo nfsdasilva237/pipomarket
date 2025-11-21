@@ -174,8 +174,9 @@ const styles = StyleSheet.create({
   },
   adImage: {
     width: '100%',
-    height: 120,
+    height: 180,
     backgroundColor: '#f0f0f0',
+    resizeMode: 'contain',
   },
   adContent: {
     padding: 12,
